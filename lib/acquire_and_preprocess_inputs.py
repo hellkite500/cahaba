@@ -23,6 +23,24 @@ from utils.shared_variables import (NHD_URL_PARENT,
 from utils.shared_functions import pull_file
 
 
+def preprocess(procs_list):
+    
+    nhd_raster_download_url = procs_list[0]
+    nhd_raster_extraction_path = procs_list[1]
+    nhd_vector_download_url = procs_list[2]
+    nhd_vector_extraction_path = procs_list[3]
+    
+    # Download raster and vector, if not already in user's directory (exist check performed by pull_file()).
+    nhd_raster_extraction_parent = os.path.dirname(nhd_raster_extraction_path)
+    if not os.path.exists(nhd_raster_extraction_parent):
+        os.mkdir(nhd_raster_extraction_parent)
+    pull_file(nhd_raster_download_url, nhd_raster_extraction_path)
+    
+    pull_file(nhd_vector_download_url, nhd_vector_extraction_path)
+        
+    # Project and convert vectors to geopackage.
+        
+
 
 def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir):
     """
@@ -33,7 +51,9 @@ def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_d
         path_to_saved_data_parent_dir (str): Path to directory where raw data and post-processed data will be saved.
     Returns: TBD
     """
-        
+    
+    procs_list = []  # Initialize procs_list for multiprocessing.
+    
     # Create the parent directory if nonexistent.
     if not os.path.exists(path_to_saved_data_parent_dir):
         os.mkdir(path_to_saved_data_parent_dir)
@@ -55,22 +75,19 @@ def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_d
     # Construct paths to data to download and append to procs_list for multiprocessed pull, project, and converstion to geopackage.
     for huc in huc_list:
         huc = str(huc[0])
-        
+    
         # Construct URL and extraction path for NHDPlus raster.
         nhd_raster_download_url = os.path.join(NHD_URL_PARENT, NHD_URL_PREFIX + huc + NHD_RASTER_URL_SUFFIX)
-        nhd_raster_extraction_parent = os.path.join(nhd_raster_dir, NHD_RASTER_EXTRACTION_PREFIX + huc)
-        if not os.path.exists(nhd_raster_extraction_parent):
-            os.mkdir(nhd_raster_extraction_parent)
-        nhd_raster_extraction_path = os.path.join(nhd_raster_extraction_parent, NHD_RASTER_EXTRACTION_SUFFIX)
+        nhd_raster_extraction_path = os.path.join(nhd_raster_dir, NHD_RASTER_EXTRACTION_PREFIX + huc, NHD_RASTER_EXTRACTION_SUFFIX)
         
         # Construct URL and extraction path for NHDPlus vector.
         nhd_vector_download_url = os.path.join(NHD_URL_PARENT, NHD_URL_PREFIX + huc + NHD_VECTOR_URL_SUFFIX)
         nhd_vector_extraction_path = os.path.join(vector_data_dir, NHD_VECTOR_EXTRACTION_PREFIX + huc + NHD_VECTOR_EXTRACTION_SUFFIX)
     
-        pool = Pool(NUM_OF_WORKERS)
-        pool.map(pull_file, [[nhd_raster_download_url, nhd_raster_extraction_path], [nhd_vector_download_url, nhd_vector_extraction_path]])
+        procs_list.append([nhd_raster_download_url, nhd_raster_extraction_path, nhd_vector_download_url, nhd_vector_extraction_path])
         
-        
+    pool = Pool(NUM_OF_WORKERS)
+    pool.map(preprocess, procs_list)
 
 
 if __name__ == '__main__':
