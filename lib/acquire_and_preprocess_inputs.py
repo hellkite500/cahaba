@@ -18,7 +18,8 @@ from utils.shared_variables import (NHD_URL_PARENT,
                                     NHD_RASTER_EXTRACTION_PREFIX,
                                     NHD_RASTER_EXTRACTION_SUFFIX,
                                     NHD_VECTOR_EXTRACTION_PREFIX,
-                                    NHD_VECTOR_EXTRACTION_SUFFIX)
+                                    NHD_VECTOR_EXTRACTION_SUFFIX,
+                                    PREP_PROJECTION)
 
 from utils.shared_functions import pull_file
 
@@ -36,16 +37,29 @@ def pull_and_prepare_nhd_data(procs_list):
     if not os.path.exists(nhd_raster_extraction_parent):
         os.mkdir(nhd_raster_extraction_parent)
     pull_file(nhd_raster_download_url, nhd_raster_extraction_path)
-    pull_file(nhd_vector_download_url, nhd_vector_extraction_path)
+#    pull_file(nhd_vector_download_url, nhd_vector_extraction_path)
+    print("All files pulled.")
     
-    # Unzip downloaded vector.
-    # USE SUBPROCESS: 7za x "$outputDataDir""/""$NHD_HUC_vector_prefix""$ii""$NHD_HUC_vector_postfix" -o$outputDataDir
-    
+    # Unzip downloaded vector. Then delete the zipped dir.
+    nhd_vector_extraction_parent = os.path.dirname(nhd_vector_extraction_path)
+    print(nhd_vector_extraction_parent)
+    huc = os.path.split(nhd_vector_extraction_parent)[1]
+#    os.system("7za x {nhd_vector_extraction_path} -o{nhd_vector_extraction_parent}".format(nhd_vector_extraction_path=nhd_vector_extraction_path, nhd_vector_extraction_parent=nhd_vector_extraction_parent))
+#    os.remove(nhd_vector_extraction_path)  # Delete the zipped GDB.
+#    
     # Project and convert vectors to geopackage.
+    nhd_gdb = nhd_vector_extraction_path.replace('.zip', '.gdb')
+#    os.system("ogr2ogr -overwrite -progress -f GPKG -t_srs "$usgsProjection" $outputDataDir/WBDHU6_1209.gpkg $outputDataDir/NHDPLUS_H_1209_HU4_GDB.gdb WBDHU6"
+    os.system('ogr2ogr -overwrite -progress -f GPKG -t_srs "{PREP_PROJECTION}" {burn_line_event_gpkg} {nhd_gdb} NHDPlusBurnLineEvent'.format(PREP_PROJECTION=PREP_PROJECTION, burn_line_event_gpkg=os.path.join(nhd_vector_extraction_parent, 'NHDPlusBurnLineEvent_' + huc + '.gpkg'), nhd_gdb=nhd_gdb))
     
-        
+    os.system('ogr2ogr -overwrite -progress -f GPKG -t_srs "{PREP_PROJECTION}" {flow_line_vaa_gpkg} {nhd_gdb} NHDPlusFlowlineVAA'.format(PREP_PROJECTION=PREP_PROJECTION, flow_line_vaa_gpkg=os.path.join(nhd_vector_extraction_parent, 'NHDPlusFlowlineVAA_' + huc + '.gpkg'), nhd_gdb=nhd_gdb))
+    
+    
+#             ogr2ogr -overwrite -progress -f GPKG -t_srs "$usgsProjection" $outputDataDir/NHDPlusFlowlineVAA_1209.gpkg $outputDataDir/NHDPLUS_H_1209_HU4_GDB.gdb NHDPlusFlowlineVAA
+    
+#        $outputDataDir/NHDPlusBurnLineEvent_1209.gpkg
 
-
+#ogr2ogr -overwrite -progress -f GPKG -t_srs "$usgsProjection" $outputDataDir/NHDPlusBurnLineEvent_1209.gpkg $outputDataDir/NHDPLUS_H_1209_HU4_GDB.gdb NHDPlusBurnLineEvent
 def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir):
     """
     This functions manages the downloading and preprocessing of gridded and vector data for FIM production.
@@ -84,9 +98,13 @@ def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_d
         nhd_raster_download_url = os.path.join(NHD_URL_PARENT, NHD_URL_PREFIX + huc + NHD_RASTER_URL_SUFFIX)
         nhd_raster_extraction_path = os.path.join(nhd_raster_dir, NHD_RASTER_EXTRACTION_PREFIX + huc, NHD_RASTER_EXTRACTION_SUFFIX)
         
-        # Construct URL and extraction path for NHDPlus vector.
+        # Construct URL and extraction path for NHDPlus vector. Organize into huc-level subdirectories.
         nhd_vector_download_url = os.path.join(NHD_URL_PARENT, NHD_URL_PREFIX + huc + NHD_VECTOR_URL_SUFFIX)
-        nhd_vector_extraction_path = os.path.join(vector_data_dir, NHD_VECTOR_EXTRACTION_PREFIX + huc + NHD_VECTOR_EXTRACTION_SUFFIX)
+        nhd_vector_download_parent = os.path.join(vector_data_dir, huc)
+        if not os.path.exists(nhd_vector_download_parent):
+            os.mkdir(nhd_vector_download_parent)
+        nhd_vector_extraction_path = os.path.join(nhd_vector_download_parent, NHD_VECTOR_EXTRACTION_PREFIX + huc + NHD_VECTOR_EXTRACTION_SUFFIX)
+
     
         procs_list.append([nhd_raster_download_url, nhd_raster_extraction_path, nhd_vector_download_url, nhd_vector_extraction_path])
         
