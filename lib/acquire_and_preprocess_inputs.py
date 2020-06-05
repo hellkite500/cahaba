@@ -26,8 +26,10 @@ from utils.shared_variables import (NHD_URL_PARENT,
 from utils.shared_functions import pull_file
     
 
-def project_and_convert_to_gpkg(input_gdb, gdb_layer, output_gpkg, projection):
+def project_and_convert_to_gpkg(args):
+    input_gdb, gdb_layer, output_gpkg, projection = args[0], args[1], args[2], args[3]
     
+    print("Projecting and converting " + gdb_layer)
     os.system('ogr2ogr -overwrite -progress -f GPKG -t_srs "{projection}" {output_gpkg} {input_gdb} {gdb_layer}'.format(projection=projection, output_gpkg=output_gpkg, input_gdb=input_gdb, gdb_layer=gdb_layer))
 
 
@@ -50,14 +52,19 @@ def pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir):
 #    os.remove(pulled_hydrofabric_tar_path)
     
     nwm_hydrofabric_gdb = os.path.join(nwm_hydrofabric_directory, 'NWM_v2.0_channel_hydrofabric', 'nwm_v2_0_hydrofabric.gdb')
-    print(nwm_hydrofabric_gdb)
-    print(os.path.exists(nwm_hydrofabric_gdb))
-    
+
     # Use ogr2ogr to project and convert.
     list_of_nwm_layers = ['nwm_reaches_conus', 'nwm_waterbodies_conus', 'nwm_catchments_conus']
+    procs_list = []
+    
     for nwm_layer in list_of_nwm_layers:
         output_gpkg = os.path.join(nwm_hydrofabric_directory, nwm_layer + '.gpkg')
-        project_and_convert_to_gpkg(nwm_hydrofabric_gdb, nwm_layer, output_gpkg, PREP_PROJECTION)
+        procs_list.append([nwm_hydrofabric_gdb, nwm_layer, output_gpkg, PREP_PROJECTION])
+#        pull_and_prepare_nhd_data([nwm_hydrofabric_gdb, nwm_layer, output_gpkg, PREP_PROJECTION])
+        
+        
+    pool = Pool(2)
+    pool.map(project_and_convert_to_gpkg, procs_list)
         
 
 def pull_and_prepare_nhd_data(procs_list):
