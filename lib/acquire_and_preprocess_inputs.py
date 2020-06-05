@@ -10,7 +10,7 @@ import csv
 import sys
 from multiprocessing import Pool
 
-NUM_OF_WORKERS = 2
+NUM_OF_WORKERS = 1
 from utils.shared_variables import (NHD_URL_PARENT,
                                     NHD_URL_PREFIX,
                                     NHD_RASTER_URL_SUFFIX,
@@ -23,8 +23,9 @@ from utils.shared_variables import (NHD_URL_PARENT,
 from utils.shared_functions import pull_file
 
 
-def preprocess(procs_list):
+def pull_and_prepare_nhd_data(procs_list):
     
+    # Parse urls and extraction paths from procs_list.
     nhd_raster_download_url = procs_list[0]
     nhd_raster_extraction_path = procs_list[1]
     nhd_vector_download_url = procs_list[2]
@@ -35,10 +36,13 @@ def preprocess(procs_list):
     if not os.path.exists(nhd_raster_extraction_parent):
         os.mkdir(nhd_raster_extraction_parent)
     pull_file(nhd_raster_download_url, nhd_raster_extraction_path)
-    
     pull_file(nhd_vector_download_url, nhd_vector_extraction_path)
-        
+    
+    # Unzip downloaded vector.
+    # USE SUBPROCESS: 7za x "$outputDataDir""/""$NHD_HUC_vector_prefix""$ii""$NHD_HUC_vector_postfix" -o$outputDataDir
+    
     # Project and convert vectors to geopackage.
+    
         
 
 
@@ -86,8 +90,9 @@ def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_d
     
         procs_list.append([nhd_raster_download_url, nhd_raster_extraction_path, nhd_vector_download_url, nhd_vector_extraction_path])
         
+    # Pull NHD Data.
     pool = Pool(NUM_OF_WORKERS)
-    pool.map(preprocess, procs_list)
+    pool.map(pull_and_prepare_nhd_data, procs_list)
 
 
 if __name__ == '__main__':

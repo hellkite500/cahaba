@@ -15,3 +15,5 @@ def pull_file(url, full_pulled_filepath):
     if not(os.path.exists(full_pulled_filepath)):
     
         urllib.request.urlretrieve(url, full_pulled_filepath)
+    else:
+        print(full_pulled_filepath + ' already exists.')
