@@ -40,28 +40,23 @@ def pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir):
     if not os.path.exists(nwm_hydrofabric_directory):
         os.mkdir(nwm_hydrofabric_directory)
     pulled_hydrofabric_tar_gz_path = os.path.join(nwm_hydrofabric_directory, 'NWM_channel_hydrofabric.tar.gz')
-#    pull_file(NWM_HYDROFABRIC_URL, pulled_hydrofabric_tar_gz_path)
+    pull_file(NWM_HYDROFABRIC_URL, pulled_hydrofabric_tar_gz_path)
     
-#    os.system("7za x {pulled_hydrofabric_tar_gz_path} -o{nwm_hydrofabric_directory}".format(pulled_hydrofabric_tar_gz_path=pulled_hydrofabric_tar_gz_path, nwm_hydrofabric_directory=nwm_hydrofabric_directory))
+    os.system("7za x {pulled_hydrofabric_tar_gz_path} -o{nwm_hydrofabric_directory}".format(pulled_hydrofabric_tar_gz_path=pulled_hydrofabric_tar_gz_path, nwm_hydrofabric_directory=nwm_hydrofabric_directory))
     
-#    pulled_hydrofabric_tar_path = pulled_hydrofabric_tar_gz_path.strip('.gz')
-#    os.system("7za x {pulled_hydrofabric_tar_path} -o{nwm_hydrofabric_directory}".format(pulled_hydrofabric_tar_path=pulled_hydrofabric_tar_path, nwm_hydrofabric_directory=nwm_hydrofabric_directory))
+    pulled_hydrofabric_tar_path = pulled_hydrofabric_tar_gz_path.strip('.gz')
+    os.system("7za x {pulled_hydrofabric_tar_path} -o{nwm_hydrofabric_directory}".format(pulled_hydrofabric_tar_path=pulled_hydrofabric_tar_path, nwm_hydrofabric_directory=nwm_hydrofabric_directory))
     
     # Delete temporary zip files.
-#    os.remove(pulled_hydrofabric_tar_gz_path)
-#    os.remove(pulled_hydrofabric_tar_path)
+    os.remove(pulled_hydrofabric_tar_gz_path)
+    os.remove(pulled_hydrofabric_tar_path)
     
     nwm_hydrofabric_gdb = os.path.join(nwm_hydrofabric_directory, 'NWM_v2.0_channel_hydrofabric', 'nwm_v2_0_hydrofabric.gdb')
 
-    # Use ogr2ogr to project and convert.
-    list_of_nwm_layers = ['nwm_reaches_conus', 'nwm_waterbodies_conus', 'nwm_catchments_conus']
     procs_list = []
-    
-    for nwm_layer in list_of_nwm_layers:
+    for nwm_layer in ['nwm_reaches_conus', 'nwm_waterbodies_conus', 'nwm_catchments_conus']:
         output_gpkg = os.path.join(nwm_hydrofabric_directory, nwm_layer + '.gpkg')
-        procs_list.append([nwm_hydrofabric_gdb, nwm_layer, output_gpkg, PREP_PROJECTION])
-#        pull_and_prepare_nhd_data([nwm_hydrofabric_gdb, nwm_layer, output_gpkg, PREP_PROJECTION])
-        
+        procs_list.append([nwm_hydrofabric_gdb, nwm_layer, output_gpkg, PREP_PROJECTION])        
         
     pool = Pool(2)
     pool.map(project_and_convert_to_gpkg, procs_list)
@@ -92,8 +87,9 @@ def pull_and_prepare_nhd_data(procs_list):
     
     # -- Project and convert NHDPlusBurnLineEvent and NHDPlusFlowLineVAA vectors to geopackage -- #
     nhd_gdb = nhd_vector_extraction_path.replace('.zip', '.gdb')  # Update extraction path from .zip to .gdb. 
-    os.system('ogr2ogr -overwrite -progress -f GPKG -t_srs "{PREP_PROJECTION}" {burn_line_event_gpkg} {nhd_gdb} NHDPlusBurnLineEvent'.format(PREP_PROJECTION=PREP_PROJECTION, burn_line_event_gpkg=os.path.join(nhd_vector_extraction_parent, 'NHDPlusBurnLineEvent_' + huc + '.gpkg'), nhd_gdb=nhd_gdb))
-    os.system('ogr2ogr -overwrite -progress -f GPKG -t_srs "{PREP_PROJECTION}" {flow_line_vaa_gpkg} {nhd_gdb} NHDPlusFlowlineVAA'.format(PREP_PROJECTION=PREP_PROJECTION, flow_line_vaa_gpkg=os.path.join(nhd_vector_extraction_parent, 'NHDPlusFlowlineVAA_' + huc + '.gpkg'), nhd_gdb=nhd_gdb))
+    for nhd_layer in ['NHDPlusBurnLineEvent', 'NHDPlusFlowlineVAA']:
+        output_gpkg = os.path.join(nhd_vector_extraction_parent, nhd_layer + huc + '.gpkg')
+        project_and_convert_to_gpkg([nhd_gdb, nhd_layer, output_gpkg, PREP_PROJECTION])  
     
     
 def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir):
@@ -144,9 +140,9 @@ def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_d
         # Append extraction instructions to nhd_procs_list.
         nhd_procs_list.append([nhd_raster_download_url, nhd_raster_extraction_path, nhd_vector_download_url, nhd_vector_extraction_path])
         
-#    # Pull NHD Data.
-#    pool = Pool(NUM_OF_WORKERS)
-#    pool.map(pull_and_prepare_nhd_data, nhd_procs_list)
+    # Pull NHD Data.
+    pool = Pool(NUM_OF_WORKERS)
+    pool.map(pull_and_prepare_nhd_data, nhd_procs_list)
     
     pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir)
 
