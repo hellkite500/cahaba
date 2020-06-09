@@ -15,36 +15,51 @@ input_NHD_Flowlines=$inputDataDir/NHDPlusBurnLineEvent_"$huc4Identifier"_proj.gp
 input_NHD_VAA=$inputDataDir/NHDPlusFlowlineVAA_"$huc4Identifier".gpkg
 input_NHD_WBHD_layer=WBDHU$hucUnitLength
 
-## GET WBD ##
-echo -e $startDiv"Get WBD $hucNumber"$stopDiv
+## GET WBD6 ##
+echo -e $startDiv"Get WBD6 $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/wbd.gpkg ] && \
 ogr2ogr -f GPKG $outputHucDataDir/wbd.gpkg $input_WBD_gdb $input_NHD_WBHD_layer -where "HUC$hucUnitLength='$hucNumber'"
 Tcount
 
-## REPROJECT WBD ##
-echo -e $startDiv"Reproject WBD $hucNumber"$stopDiv
+## REPROJECT WBD6 ##
+echo -e $startDiv"Reproject WBD6 $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/wbd_projected.gpkg ] && \
 ogr2ogr -t_srs "$PROJ" -f GPKG $outputHucDataDir/wbd_projected.gpkg $outputHucDataDir/wbd.gpkg
 Tcount
 
-## BUFFER WBD ##
-echo -e $startDiv"Buffer WBD $hucNumber"$stopDiv
+## BUFFER WBD6 ##
+echo -e $startDiv"Buffer WBD6 $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/wbd_projected_buffered.gpkg ] && \
 ogr2ogr -f GPKG -dialect sqlite -sql "select ST_buffer(geom, $bufferDistance) from 'WBDHU$hucUnitLength'" $outputHucDataDir/wbd_projected_buffered.gpkg $outputHucDataDir/wbd_projected.gpkg
 Tcount
 
+## REPROJECT WBD8 ##
+echo -e $startDiv"Reproject WBD8 $hucNumber"$stopDiv
+date -u
+Tstart
+[ ! -f $outputHucDataDir/wbd8_projected.gpkg ] && \
+ogr2ogr -t_srs "$PROJ" -f GPKG $outputHucDataDir/wbd8_projected.gpkg $input_WBD_gdb 'WBDHU8'
+Tcount
+
 ## GET STREAMS ##
 echo -e $startDiv"Get Vector Layers and Subset $hucNumber"$stopDiv
 date -u
 Tstart
-[ ! -f $outputHucDataDir/demDerived_reaches.gpkg ] && \
+[ ! -f $outputHucDataDir/demDerived_reaches.shp ] && \
 $libDir/snap_and_clip_to_nhd.py -d $hucNumber -p "$PROJ" -w $input_NWM_Headwaters -s $input_NHD_Flowlines  -v $input_NHD_VAA -l $input_NWM_Lakes -u $outputHucDataDir/wbd_projected.gpkg -c $outputHucDataDir/NHDPlusBurnLineEvent_subset.gpkg -a $outputHucDataDir/nwm_lakes_proj_subset.gpkg -t $outputHucDataDir/nwm_headwaters_proj_subset.gpkg -m $input_NWM_Catchments -n $outputHucDataDir/nwm_catchments_proj_subset.gpkg -e $outputHucDataDir/nhd_headwater_points_subset.gpkg
+Tcount
+
+## Clip WBD8 ##
+echo -e $startDiv"Clip WBD8"$stopDiv
+date -u
+Tstart
+ogr2ogr -f GPKG -clipsrc $outputHucDataDir/wbd_projected_buffered.gpkg $outputHucDataDir/wbd8_projected_clp.gpkg $outputHucDataDir/wbd8_projected.gpkg
 Tcount
 
 ## CLIP DEM ##
@@ -160,8 +175,8 @@ Tcount
 echo -e $startDiv"Stream Net for Reaches $hucNumber"$stopDiv
 date -u
 Tstart
-[ ! -f $outputHucDataDir/demDerived_reaches.gpkg ] && \
-$taudemDir/streamnet -p $outputHucDataDir/flowdir_d8_burned_filled.tif -fel $outputHucDataDir/dem_thalwegCond.tif -ad8 $outputHucDataDir/flowaccum_d8_burned_filled.tif -src $outputHucDataDir/demDerived_streamPixels.tif -ord $outputHucDataDir/streamOrder.tif -tree $outputHucDataDir/treeFile.txt -coord $outputHucDataDir/coordFile.txt -w $outputHucDataDir/sn_catchments_reaches.tif -net $outputHucDataDir/demDerived_reaches.gpkg
+[ ! -f $outputHucDataDir/demDerived_reaches.shp ] && \
+$taudemDir/streamnet -p $outputHucDataDir/flowdir_d8_burned_filled.tif -fel $outputHucDataDir/dem_thalwegCond.tif -ad8 $outputHucDataDir/flowaccum_d8_burned_filled.tif -src $outputHucDataDir/demDerived_streamPixels.tif -ord $outputHucDataDir/streamOrder.tif -tree $outputHucDataDir/treeFile.txt -coord $outputHucDataDir/coordFile.txt -w $outputHucDataDir/sn_catchments_reaches.tif -net $outputHucDataDir/demDerived_reaches.shp
 Tcount
 
 ## SPLIT DERIVED REACHES ##
@@ -169,7 +184,7 @@ echo -e $startDiv"Split Derived Reaches $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/demDerived_reaches_split.gpkg ] && \
-$libDir/split_flows.py $outputHucDataDir/demDerived_reaches.gpkg "$PROJ" $outputHucDataDir/dem_thalwegCond.tif $outputHucDataDir/demDerived_reaches_split.gpkg $outputHucDataDir/demDerived_reaches_split_points.gpkg $maxSplitDistance_meters $manning_n $slope_min
+$libDir/split_flows.py $outputHucDataDir/demDerived_reaches.shp "$PROJ" $outputHucDataDir/dem_thalwegCond.tif $outputHucDataDir/demDerived_reaches_split.gpkg $outputHucDataDir/demDerived_reaches_split_points.gpkg $maxSplitDistance_meters $manning_n $slope_min $outputHucDataDir/wbd8_projected_clp.gpkg  $outputHucDataDir/nwm_lakes_proj_subset.gpkg
 Tcount
 
 ## GAGE WATERSHED FOR REACHES ##
