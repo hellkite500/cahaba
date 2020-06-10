@@ -21,7 +21,8 @@ from utils.shared_variables import (NHD_URL_PARENT,
                                     NHD_VECTOR_EXTRACTION_PREFIX,
                                     NHD_VECTOR_EXTRACTION_SUFFIX,
                                     PREP_PROJECTION,
-                                    NWM_HYDROFABRIC_URL)
+                                    NWM_HYDROFABRIC_URL,
+                                    HEADWATER_NODES)
 
 from utils.shared_functions import pull_file
     
@@ -58,7 +59,15 @@ def pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir):
         output_gpkg = os.path.join(nwm_hydrofabric_directory, nwm_layer + '.gpkg')
         procs_list.append([nwm_hydrofabric_gdb, nwm_layer, output_gpkg, PREP_PROJECTION])        
         
-    pool = Pool(2)
+#    # Define paths to and append variables for any temporarily stored datasets for NWM hydrofabric.
+#    headwater_nodes_gdb = os.path.dirname(HEADWATER_NODES)
+#    print(headwater_nodes_gdb)
+#    headwater_nodes_layer = os.path.split(HEADWATER_NODES)[1]
+#    print(headwater_nodes_layer)
+#    headwater_nodes_output_gpkg = os.path.join(nwm_hydrofabric_directory, 'nwm_headwaters.gpkg')
+#    procs_list.append([headwater_nodes_gdb, headwater_nodes_layer, headwater_nodes_output_gpkg, PREP_PROJECTION])
+#    
+    pool = Pool(4)
     pool.map(project_and_convert_to_gpkg, procs_list)
         
 
@@ -89,7 +98,7 @@ def pull_and_prepare_nhd_data(procs_list):
     nhd_gdb = nhd_vector_extraction_path.replace('.zip', '.gdb')  # Update extraction path from .zip to .gdb. 
     for nhd_layer in ['NHDPlusBurnLineEvent', 'NHDPlusFlowlineVAA']:
         output_gpkg = os.path.join(nhd_vector_extraction_parent, nhd_layer + huc + '.gpkg')
-        project_and_convert_to_gpkg([nhd_gdb, nhd_layer, output_gpkg, PREP_PROJECTION])  
+        project_and_convert_to_gpkg([nhd_gdb, nhd_layer, output_gpkg, PREP_PROJECTION])  # Use list because function is configured for multiprocessing.
     
     
 def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir):

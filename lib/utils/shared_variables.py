@@ -5,10 +5,11 @@ Created on Thu Jun  4 11:00:02 2020
 @author: bradford.bates
 """
 
+# Paths.
+HEADWATER_NODES = r'X:\datasets\nwm\v2_1\dev\RouteLink_2_1_2019_05_09.gdb\Headwater_Nodes_20190509'  # Temporary
 
 # Projections.
 PREP_PROJECTION = '+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m no_defs'  # from preprocess_gis.sh
-
 
 # -- Data URLs-- #
 NHD_URL_PARENT = r'ftp://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/Hydrography/NHDPlus/HU4/HighResolution/GDB/'
