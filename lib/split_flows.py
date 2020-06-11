@@ -42,8 +42,13 @@ lakes = gpd.read_file(lakes_filename)
 WBD8 = gpd.read_file(huc8_filename)
 dem = Raster(dem_fileName)
 
+# Check projection
+WBD8 = WBD8.to_crs(projection)
 flows = flows.to_crs(projection)
 lakes = lakes.to_crs(projection)
+
+WBD8 = WBD8.filter(items=['fossid', 'geometry'])
+WBD8 = WBD8.set_index('fossid')
 flows = flows.explode()
 
 split_flows = []
@@ -60,6 +65,7 @@ if len(lakes) > 0:
 
 print ('splitting ' + str(len(flows)) + ' stream segments based on ' + str(maxLength) + ' m max length')
 for i,lineString in tqdm(enumerate(flows.geometry),total=len(flows.geometry)):      
+#for i,lineString in enumerate(flows.geometry):      
   # Reverse geometry order (necessary for BurnLines)
   lineString = LineString(lineString.coords[::-1])
   # Collect small reaches

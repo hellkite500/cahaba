@@ -39,14 +39,6 @@ Tstart
 ogr2ogr -f GPKG -dialect sqlite -sql "select ST_buffer(geom, $bufferDistance) from 'WBDHU$hucUnitLength'" $outputHucDataDir/wbd_projected_buffered.gpkg $outputHucDataDir/wbd_projected.gpkg
 Tcount
 
-## REPROJECT WBD8 ##
-echo -e $startDiv"Reproject WBD8 $hucNumber"$stopDiv
-date -u
-Tstart
-[ ! -f $outputHucDataDir/wbd8_projected.gpkg ] && \
-ogr2ogr -t_srs "$PROJ" -f GPKG $outputHucDataDir/wbd8_projected.gpkg $input_WBD_gdb 'WBDHU8'
-Tcount
-
 ## GET STREAMS ##
 echo -e $startDiv"Get Vector Layers and Subset $hucNumber"$stopDiv
 date -u
@@ -59,7 +51,7 @@ Tcount
 echo -e $startDiv"Clip WBD8"$stopDiv
 date -u
 Tstart
-ogr2ogr -f GPKG -clipsrc $outputHucDataDir/wbd_projected_buffered.gpkg $outputHucDataDir/wbd8_projected_clp.gpkg $outputHucDataDir/wbd8_projected.gpkg
+ogr2ogr -f GPKG -clipsrc $outputHucDataDir/wbd_projected_buffered.gpkg $outputHucDataDir/wbd8_projected_clp.gpkg $inputDataDir/WBDHU8_proj.gpkg
 Tcount
 
 ## CLIP DEM ##

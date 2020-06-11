@@ -9,7 +9,6 @@ import sys
 import datetime
 import pandas as pd
 import argparse
-import generatetofromnode
 import geopandas as gpd
 
 def trace():
@@ -25,6 +24,8 @@ def trace():
 FN_FROMNODE = "From_Node"
 FN_TONODE = "To_Node"
 FN_NEXTDOWNID = "NextDownID"
+FN_FROMNODE = "From_Node"
+FN_TONODE = "To_Node"
 
 class BuildStreamTraversalColumns(object):
     '''Tool class for updating the next down IDs of stream features.'''
@@ -36,17 +37,11 @@ class BuildStreamTraversalColumns(object):
     def execute(self, modelstream, WBD8, HYDROID):
         try:    
             split_code = 1
-            #Check whether from_node and to_node exists and exit if they do not
             sOK = 'OK' 
                                    
             # check for HydroID; Assign if doesn't exist
             if not HYDROID in modelstream.columns:
-                print ("Required field " + HYDROID + " does not exist in input ")
-                
-                if WBD8.crs.to_string() != modelstream.crs.to_string():                
-                    WBD8 = WBD8.to_crs(modelstream.crs.to_string())
-                WBD8 = WBD8.filter(items=['HUC8', 'geometry'])
-                WBD8 = WBD8.set_index('HUC8')
+                print ("Required field " + HYDROID + " does not exist in input. Generating..")
                 modelstream['centroid'] = modelstream.geometry.centroid
                 modelstreamcent = modelstream.filter(items=['centroid'])
                 modelstreamcent = modelstreamcent.rename(columns={"centroid": "geometry"})
@@ -56,13 +51,13 @@ class BuildStreamTraversalColumns(object):
                 modelstream = modelstream.drop(columns=['centroidog', 'centroidjn'])
                 
                 nRecs = len(modelstream)
-#                HydroIDs = [str(item).zfill(4) for item in list(range(1, 1 + nRecs))]
-                HydroIDs = [str(item).zfill(8) for item in list(range(12340000, 12340000 + nRecs))]
+                HydroIDs = [str(item).zfill(4) for item in list(range(1, 1 + nRecs))]
+                # HydroIDs = [str(item).zfill(8) for item in list(range(12340000, 12340000 + nRecs))]
                 modelstream['seqID'] = HydroIDs
-#                modelstream = modelstream.assign(HYDROID= lambda x: x.HUC8id + x.seqID)
-#                modelstream = modelstream.rename(columns={"HYDROID": HYDROID}).sort_values(HYDROID)
-#                modelstream = modelstream.drop(columns=['HUC8id', 'seqID'])
-                modelstream = modelstream.rename(columns={"seqID": HYDROID}).sort_values(HYDROID)
+                modelstream = modelstream.assign(HYDROID= lambda x: x.HUC8id + x.seqID)
+                modelstream = modelstream.rename(columns={"HYDROID": HYDROID}).sort_values(HYDROID)
+                modelstream = modelstream.drop(columns=['HUC8id', 'seqID'])
+                # modelstream = modelstream.rename(columns={"seqID": HYDROID}).sort_values(HYDROID)
                 modelstream[HYDROID] = modelstream[HYDROID].astype(int)
                 print ('Generated ' + HYDROID + ' Successfully')
             
@@ -72,23 +67,58 @@ class BuildStreamTraversalColumns(object):
                 print ("Field " + FN_FROMNODE + " does not exist in input ")
                 bOK = False  
             if not FN_TONODE in modelstream.columns:
-                print ("Field " + FN_TONODE + " does not exist in input ")
+                print ("Field " + FN_TONODE + " does not exist in input. Generating..")
                 bOK = False 
 
             if(bOK==False): 
-                 
-                pGenerateFromToNodeforLines = generatetofromnode.GenerateFromToNodeforLines()
-                tResults = None
-                tResults = pGenerateFromToNodeforLines.setFromToNodeDict(modelstream, HYDROID)
+                input_lines = modelstream.copy()
+                # Add fields if not they do not exist.
+                if not FN_FROMNODE in input_lines.columns:
+                    input_lines[FN_FROMNODE] = ''
                 
-                if tResults[0] == 'OK':                    
-                    modelstream = tResults[1]                    
+                if not FN_TONODE in input_lines.columns:
+                    input_lines[FN_TONODE] = ''
+                
+                # PU_Order = 'PU_Order'
+                # # Create PU_Order field
+                # if not PU_Order in input_lines.columns:
+                #     input_lines[PU_Order] = ''
+                
+                input_lines_sort = input_lines.sort_values(by=[HYDROID], ascending=True).copy()
+                
+                xy_dict = {}
+                bhasnullshape=False
+                for rows in input_lines_sort[['geometry', FN_FROMNODE, FN_TONODE]].iterrows():             
+                    if rows[1][0]:
+                        # From Node
+                        firstx = round(rows[1][0].coords.xy[0][0], 7)
+                        firsty = round(rows[1][0].coords.xy[1][0], 7)
+                        from_key = '{},{}'.format(firstx, firsty)
+                        if from_key in xy_dict:
+                            input_lines_sort.at[rows[0], FN_FROMNODE,] = xy_dict[from_key]
+                        else:
+                            xy_dict[from_key] = len(xy_dict) + 1
+                            input_lines_sort.at[rows[0], FN_FROMNODE,] = xy_dict[from_key]
+    
+                        # To Node
+                        lastx = round(rows[1][0].coords.xy[0][-1], 7)
+                        lasty = round(rows[1][0].coords.xy[1][-1], 7)
+                        to_key = '{},{}'.format(lastx, lasty)
+                        #if xy_dict.has_key(to_key):
+                        if to_key in xy_dict:
+                            input_lines_sort.at[rows[0], FN_TONODE] = xy_dict[to_key]
+                        else:
+                            xy_dict[to_key] = len(xy_dict) + 1
+                            input_lines_sort.at[rows[0], FN_TONODE] = xy_dict[to_key]
+                    else:
+                         bhasnullshape=True
+
+                if bhasnullshape==True:
+                    print ("Some of the input features have a null shape.")
+                    print (FN_FROMNODE + " and " + FN_TONODE + " fields cannot be populated for those features.")
+                else:          
                     print ('Generated To/From Nodes Successfully')
-                else:
-                    print (tResults)
-                    print ('Failed to Generate To/From Nodes')
-                    # sys.exit(0)
-                 
+                
             # Create NextDownID field
             if not FN_NEXTDOWNID in modelstream.columns:
                 modelstream[FN_NEXTDOWNID] = ''
