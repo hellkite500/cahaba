@@ -162,11 +162,17 @@ else:
 
 # Get all vertices
 split_points = OrderedDict()
-for row in split_flows_gdf[['geometry',HYDROID]].iterrows(): 
+for row in split_flows_gdf[['geometry',HYDROID, 'NextDownID']].iterrows():     
     lineString = row[1][0]
 
     for point in zip(*lineString.coords.xy):
-        split_points[point] = row[1][1]
+        if point in split_points:
+            if row[1][2] == split_points[point]:                               
+                pass
+            else:
+                split_points[point] = row[1][1]
+        else:
+            split_points[point] = row[1][1]
 
 hydroIDs_points = [hidp for hidp in split_points.values()]
 split_points = [Point(*point) for point in split_points]
