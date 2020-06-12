@@ -39,25 +39,18 @@ class BuildStreamTraversalColumns(object):
             split_code = 1
             sOK = 'OK' 
                                    
-            # check for HydroID; Assign if doesn't exist
+            # check for HydroID; Assign if it doesn't exist
             if not HYDROID in modelstream.columns:
                 print ("Required field " + HYDROID + " does not exist in input. Generating..")
-                modelstream['centroid'] = modelstream.geometry.centroid
-                modelstreamcent = modelstream.filter(items=['centroid'])
-                modelstreamcent = modelstreamcent.rename(columns={"centroid": "geometry"})
-                modelstreamcent2 = gpd.sjoin(modelstreamcent, WBD8, how='left', op='within')
-                modelstreamcent2 = modelstreamcent2.rename(columns={"geometry": "centroid", "index_right": "HUC8id"})
-                modelstream = modelstream.join(modelstreamcent2, lsuffix='og', rsuffix='jn')
-                modelstream = modelstream.drop(columns=['centroidog', 'centroidjn'])
-                
-                nRecs = len(modelstream)
-                HydroIDs = [str(item).zfill(4) for item in list(range(1, 1 + nRecs))]
-                # HydroIDs = [str(item).zfill(8) for item in list(range(12340000, 12340000 + nRecs))]
-                modelstream['seqID'] = HydroIDs
+                stream_centroid = gpd.GeoDataFrame({'geometry':modelstream.geometry.centroid}, crs=modelstream.crs, geometry='geometry')
+                stream_wbdjoin = gpd.sjoin(stream_centroid, WBD8, how='left', op='within')
+                stream_wbdjoin = stream_wbdjoin.rename(columns={"geometry": "centroid", "index_right": "HUC8id"})
+                modelstream = modelstream.join(stream_wbdjoin).drop(columns=['centroid'])
+
+                modelstream['seqID'] = (modelstream.groupby('HUC8id').cumcount(ascending=True)+1).astype('str').str.zfill(4)
                 modelstream = modelstream.assign(HYDROID= lambda x: x.HUC8id + x.seqID)
                 modelstream = modelstream.rename(columns={"HYDROID": HYDROID}).sort_values(HYDROID)
                 modelstream = modelstream.drop(columns=['HUC8id', 'seqID'])
-                # modelstream = modelstream.rename(columns={"seqID": HYDROID}).sort_values(HYDROID)
                 modelstream[HYDROID] = modelstream[HYDROID].astype(int)
                 print ('Generated ' + HYDROID + ' Successfully')
             
@@ -71,34 +64,33 @@ class BuildStreamTraversalColumns(object):
                 bOK = False 
 
             if(bOK==False): 
-                input_lines = modelstream.copy()
                 # Add fields if not they do not exist.
-                if not FN_FROMNODE in input_lines.columns:
-                    input_lines[FN_FROMNODE] = ''
+                if not FN_FROMNODE in modelstream.columns:
+                    modelstream[FN_FROMNODE] = ''
                 
-                if not FN_TONODE in input_lines.columns:
-                    input_lines[FN_TONODE] = ''
+                if not FN_TONODE in modelstream.columns:
+                    modelstream[FN_TONODE] = ''
                 
                 # PU_Order = 'PU_Order'
                 # # Create PU_Order field
-                # if not PU_Order in input_lines.columns:
-                #     input_lines[PU_Order] = ''
+                # if not PU_Order in modelstream.columns:
+                #     modelstream[PU_Order] = ''
                 
-                input_lines_sort = input_lines.sort_values(by=[HYDROID], ascending=True).copy()
+                modelstream = modelstream.sort_values(by=[HYDROID], ascending=True).copy()
                 
                 xy_dict = {}
                 bhasnullshape=False
-                for rows in input_lines_sort[['geometry', FN_FROMNODE, FN_TONODE]].iterrows():             
+                for rows in modelstream[['geometry', FN_FROMNODE, FN_TONODE]].iterrows():             
                     if rows[1][0]:
                         # From Node
                         firstx = round(rows[1][0].coords.xy[0][0], 7)
                         firsty = round(rows[1][0].coords.xy[1][0], 7)
                         from_key = '{},{}'.format(firstx, firsty)
                         if from_key in xy_dict:
-                            input_lines_sort.at[rows[0], FN_FROMNODE,] = xy_dict[from_key]
+                            modelstream.at[rows[0], FN_FROMNODE,] = xy_dict[from_key]
                         else:
                             xy_dict[from_key] = len(xy_dict) + 1
-                            input_lines_sort.at[rows[0], FN_FROMNODE,] = xy_dict[from_key]
+                            modelstream.at[rows[0], FN_FROMNODE,] = xy_dict[from_key]
     
                         # To Node
                         lastx = round(rows[1][0].coords.xy[0][-1], 7)
@@ -106,10 +98,10 @@ class BuildStreamTraversalColumns(object):
                         to_key = '{},{}'.format(lastx, lasty)
                         #if xy_dict.has_key(to_key):
                         if to_key in xy_dict:
-                            input_lines_sort.at[rows[0], FN_TONODE] = xy_dict[to_key]
+                            modelstream.at[rows[0], FN_TONODE] = xy_dict[to_key]
                         else:
                             xy_dict[to_key] = len(xy_dict) + 1
-                            input_lines_sort.at[rows[0], FN_TONODE] = xy_dict[to_key]
+                            modelstream.at[rows[0], FN_TONODE] = xy_dict[to_key]
                     else:
                          bhasnullshape=True
 
