@@ -1,11 +1,11 @@
 #!/bin/bash -e
-
+echo -e $startDiv"Running FR method for $hucNumber"$stopDiv
 ## INITIALIZE TOTAL TIME TIMER ##
 T_total_start
 
 ## SET OUTPUT DIRECTORY FOR UNIT ##
 hucNumber="$1"
-outputHucDataDir=$outputRunDataDir/$hucNumber
+outputHucDataDir=$outputRunDataDir/$hucNumber"FR"
 mkdir $outputHucDataDir
 
 ## SET VARIABLES AND FILE INPUTS ##

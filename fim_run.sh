@@ -8,6 +8,7 @@ usage ()
     echo 'REQUIRED:'
     echo '  -u/--hucList    : HUC 4,6,or 8 to run or multiple passed in quotes. Line delimited file'
     echo '                     also accepted. HUCs must present in inputs directory.'
+    echo '  -e/--extent     : full resolution or mainstem method; options are MS, FR, or BOTH passed in quotes'
     echo '  -c/--config     : configuration file with bash environment variables to export'
     echo '  -n/--runName    : a name to tag the output directories and log files as. could be a version tag.'
     echo ''
@@ -19,7 +20,7 @@ usage ()
     exit
 }
 
-if [ "$#" -lt 6 ]
+if [ "$#" -lt 7 ]
 then
   usage
 fi
@@ -30,6 +31,10 @@ in
     -u|--hucList)
         shift
         hucList="$1"
+        ;;
+    -e|--extent)
+        shift
+        extent="$1"
         ;;
     -c|--configFile ) 
         shift
@@ -57,6 +62,10 @@ done
 
 # print usage if arguments empty
 if [ "$hucList" = "" ]
+then
+    usage
+fi
+if [ "$extent" = "" ]
 then
     usage
 fi
@@ -94,16 +103,14 @@ mkdir -p $outputRunDataDir/logs
 ## RUN ##
 if [ -f "$hucList" ]; then
     if [ "$jobLimit" -eq 1 ]; then
-        parallel --verbose --lb  -j $jobLimit --joblog $logFile -- $libDir/time_and_tee_run_by_unit.sh :::: $hucList
+        parallel --verbose --lb  -j $jobLimit --joblog $logFile -- $libDir/time_and_tee_run_by_unit_"$extent".sh :::: $hucList
     else
-        parallel --eta -j $jobLimit --joblog $logFile -- $libDir/time_and_tee_run_by_unit.sh :::: $hucList
+        parallel --eta -j $jobLimit --joblog $logFile -- $libDir/time_and_tee_run_by_unit_"$extent".sh :::: $hucList
     fi
 else
     if [ "$jobLimit" -eq 1 ]; then
-        parallel --verbose --lb -j $jobLimit --joblog $logFile -- $libDir/time_and_tee_run_by_unit.sh ::: $hucList
+        parallel --verbose --lb -j $jobLimit --joblog $logFile -- $libDir/time_and_tee_run_by_unit_"$extent".sh ::: $hucList
     else
-        parallel --eta -j $jobLimit --joblog $logFile -- $libDir/time_and_tee_run_by_unit.sh ::: $hucList
+        parallel --eta -j $jobLimit --joblog $logFile -- $libDir/time_and_tee_run_by_unit_"$extent".sh ::: $hucList
     fi
 fi
-
-
