@@ -9,8 +9,9 @@ import os
 import csv
 import sys
 from multiprocessing import Pool
+import geopandas as gpd
 
-NUM_OF_WORKERS = 1
+NUM_OF_WORKERS = 2
 
 from utils.shared_variables import (NHD_URL_PARENT,
                                     NHD_URL_PREFIX,
@@ -22,7 +23,8 @@ from utils.shared_variables import (NHD_URL_PARENT,
                                     NHD_VECTOR_EXTRACTION_SUFFIX,
                                     PREP_PROJECTION,
                                     NWM_HYDROFABRIC_URL, 
-                                    WBD_NATIONAL_URL)
+                                    WBD_NATIONAL_URL,
+                                    FOSS_ID)
 
 from utils.shared_functions import pull_file, run_system_command
     
@@ -42,9 +44,20 @@ def pull_and_prepare_wbd(path_to_saved_data_parent_dir):
         pull_file(WBD_NATIONAL_URL, pulled_wbd_zipped_path)
         os.system("7za x {pulled_wbd_zipped_path} -o{wbd_directory}".format(pulled_wbd_zipped_path=pulled_wbd_zipped_path, wbd_directory=wbd_directory))
         
+    # Add fossid to HU8, project, and convert to geopackage. Code block from Brian Avant.
+    print("Adding fossid to HU8...")
+    wbd_hu8 = gpd.read_file(wbd_gdb_path, layer='WBDHU8')
+    wbd_hu8 = wbd_hu8.sort_values('HUC8')
+    n_recs = len(wbd_hu8)
+    fossids = [str(item).zfill(4) for item in list(range(1, 1 + n_recs))]
+    wbd_hu8[FOSS_ID] = fossids
+    wbd_hu8 = wbd_hu8.to_crs(PREP_PROJECTION)
+    wbd_hu8.to_file(os.path.join(wbd_directory, 'WBDHU8.gpkg'), driver='GPKG')
+        
     # Project and convert to geopackage.
+    print("Projecting WBD layers and converting to geopackage...")
     procs_list = []        
-    for wbd_layer in ['WBDHU4', 'WBDHU6', 'WBDHU8']:
+    for wbd_layer in ['WBDHU4', 'WBDHU6']:
         output_gpkg = os.path.join(wbd_directory, wbd_layer + '.gpkg')
         procs_list.append(['ogr2ogr -overwrite -progress -f GPKG -t_srs "{projection}" {output_gpkg} {wbd_gdb_path} {wbd_layer}'.format(output_gpkg=output_gpkg, wbd_gdb_path=wbd_gdb_path, wbd_layer=wbd_layer, projection=PREP_PROJECTION)])
    
@@ -76,6 +89,7 @@ def pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir):
         os.remove(pulled_hydrofabric_tar_path)
         
         # Project and convert to geopackage.
+        print("Projecting and converting NWM layers to geopackage...")
         procs_list = []
         for nwm_layer in ['nwm_reaches_conus', 'nwm_waterbodies_conus', 'nwm_catchments_conus']:
             output_gpkg = os.path.join(nwm_hydrofabric_directory, nwm_layer + '.gpkg')
@@ -184,11 +198,7 @@ if __name__ == '__main__':
     path_to_saved_data_parent_dir = sys.argv[2]  # The parent directory for all saved data.
     
     manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir)
-
-    
-    # TODO
-    # Get WBD
-    # Create gpkg of HU4, 6, 8 --> create 1 gpkg with sub-layers using original names ogr2ogr -name flag
+            
     
 """
 on the config file, you can name what you want as long as that variable reflects it `export input_WBD_gdb=$inputDataDir/WBD_National_GDB.gdb

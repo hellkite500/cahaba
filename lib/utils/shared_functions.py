@@ -19,5 +19,5 @@ def pull_file(url, full_pulled_filepath):
 def run_system_command(args):
     
     command = args[0]
-    
     os.system(command)
+    
