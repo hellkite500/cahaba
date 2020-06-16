@@ -80,6 +80,8 @@ gdalbuildvrt -overwrite -a_srs "$usgsProjection" -r bilinear mosaic.vrt  HRNHDPl
 # convert mosaic to GeoTIFF
 # gdal_translate -of "GTiff" -stats -co "COMPRESS=LZW" -co "TILED=YES" -co "BIGTIFF=YES" -co "BLOCKXSIZE=512" -co "BLOCKYSIZE=512" mosaic.vrt mosaic.tif
 
+
+
 # project nwm flows
 ogr2ogr -overwrite -progress -f GPKG $nwmDir/nwm_flows.gpkg $nwmDir/RouteLink_FL_2019_05_09.shp -nln nwm_flowlines
 ogr2ogr -overwrite -progress -f GPKG -t_srs "$usgsProjection" $nwmDir/nwm_flows_proj.gpkg $nwmDir/nwm_flows.gpkg
@@ -98,6 +100,8 @@ ogr2ogr -overwrite -progress -f GPKG -t_srs "$usgsProjection" $nwmDir/nwm_catchm
 
 # add HUC6 code to NWM flows
 # py3 get_nwm_flows_by_huc6.py $nwmDir/channel_props/ $nwmDir/nwm_flows_proj.gpkg $nwmDir/nwm_flows_proj_huc6.gpkg
+
+
 
 # extract geodatabase
 ogr2ogr -overwrite -progress -f GPKG -t_srs "$usgsProjection" $outputDataDir/WBDHU6_1209.gpkg $outputDataDir/NHDPLUS_H_1209_HU4_GDB.gdb WBDHU6

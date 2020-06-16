@@ -5,15 +5,19 @@ Created on Thu Jun  4 12:37:15 2020
 @author: bradford.bates
 """
 
+import os
+
+
 def pull_file(url, full_pulled_filepath):
     
-    import os
     import urllib.request
     
     print("Pulling " + url)
+    urllib.request.urlretrieve(url, full_pulled_filepath)
+
+        
+def run_system_command(args):
     
-    if not(os.path.exists(full_pulled_filepath)):
+    command = args[0]
     
-        urllib.request.urlretrieve(url, full_pulled_filepath)
-    else:
-        print(full_pulled_filepath + ' already exists.')
+    os.system(command)
