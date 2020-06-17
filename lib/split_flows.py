@@ -42,11 +42,6 @@ lakes = gpd.read_file(lakes_filename)
 WBD8 = gpd.read_file(huc8_filename)
 dem = Raster(dem_fileName)
 
-# Check projection
-WBD8 = WBD8.to_crs(projection)
-flows = flows.to_crs(projection)
-lakes = lakes.to_crs(projection)
-
 WBD8 = WBD8.filter(items=['fossid', 'geometry'])
 WBD8 = WBD8.set_index('fossid')
 flows = flows.explode()
