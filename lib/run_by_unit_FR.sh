@@ -15,7 +15,7 @@ input_NHD_Flowlines=$inputDataDir/NHDPlusBurnLineEvent_"$huc4Identifier"_proj.gp
 input_NHD_VAA=$inputDataDir/NHDPlusFlowlineVAA_"$huc4Identifier".gpkg
 input_NHD_WBHD_layer=WBDHU$hucUnitLength
 
-## GET WBD6 ##
+## GET WBD ##
 echo -e $startDiv"Get WBD6 $hucNumber"$stopDiv
 date -u
 Tstart
@@ -23,20 +23,12 @@ Tstart
 ogr2ogr -f GPKG $outputHucDataDir/wbd.gpkg $input_WBD_gdb $input_NHD_WBHD_layer -where "HUC$hucUnitLength='$hucNumber'"
 Tcount
 
-## REPROJECT WBD6 ##
-echo -e $startDiv"Reproject WBD6 $hucNumber"$stopDiv
-date -u
-Tstart
-[ ! -f $outputHucDataDir/wbd_projected.gpkg ] && \
-ogr2ogr -t_srs "$PROJ" -f GPKG $outputHucDataDir/wbd_projected.gpkg $outputHucDataDir/wbd.gpkg
-Tcount
-
-## BUFFER WBD6 ##
+## BUFFER WBD ##
 echo -e $startDiv"Buffer WBD6 $hucNumber"$stopDiv
 date -u
 Tstart
-[ ! -f $outputHucDataDir/wbd_projected_buffered.gpkg ] && \
-ogr2ogr -f GPKG -dialect sqlite -sql "select ST_buffer(geom, $bufferDistance) from 'WBDHU$hucUnitLength'" $outputHucDataDir/wbd_projected_buffered.gpkg $outputHucDataDir/wbd_projected.gpkg
+[ ! -f $outputHucDataDir/wbd_buffered.gpkg ] && \
+ogr2ogr -f GPKG -dialect sqlite -sql "select ST_buffer(geom, $bufferDistance) from 'WBDHU$hucUnitLength'" $outputHucDataDir/wbd_buffered.gpkg $outputHucDataDir/wbd.gpkg
 Tcount
 
 ## GET STREAMS ##
@@ -44,14 +36,14 @@ echo -e $startDiv"Get Vector Layers and Subset $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/demDerived_reaches.shp ] && \
-$libDir/snap_and_clip_to_nhd.py -d $hucNumber -p "$PROJ" -w $input_NWM_Headwaters -s $input_NHD_Flowlines  -v $input_NHD_VAA -l $input_NWM_Lakes -u $outputHucDataDir/wbd_projected.gpkg -c $outputHucDataDir/NHDPlusBurnLineEvent_subset.gpkg -a $outputHucDataDir/nwm_lakes_proj_subset.gpkg -t $outputHucDataDir/nwm_headwaters_proj_subset.gpkg -m $input_NWM_Catchments -n $outputHucDataDir/nwm_catchments_proj_subset.gpkg -e $outputHucDataDir/nhd_headwater_points_subset.gpkg
+$libDir/snap_and_clip_to_nhd.py -d $hucNumber -p "$PROJ" -w $input_NWM_Headwaters -s $input_NHD_Flowlines  -v $input_NHD_VAA -l $input_NWM_Lakes -u $outputHucDataDir/wbd.gpkg -c $outputHucDataDir/NHDPlusBurnLineEvent_subset.gpkg -a $outputHucDataDir/nwm_lakes_proj_subset.gpkg -t $outputHucDataDir/nwm_headwaters_proj_subset.gpkg -m $input_NWM_Catchments -n $outputHucDataDir/nwm_catchments_proj_subset.gpkg -e $outputHucDataDir/nhd_headwater_points_subset.gpkg
 Tcount
 
 ## Clip WBD8 ##
 echo -e $startDiv"Clip WBD8"$stopDiv
 date -u
 Tstart
-ogr2ogr -f GPKG -clipsrc $outputHucDataDir/wbd_projected_buffered.gpkg $outputHucDataDir/wbd8_projected_clp.gpkg $inputDataDir/WBDHU8_proj.gpkg
+ogr2ogr -f GPKG -clipsrc $outputHucDataDir/wbd_buffered.gpkg $outputHucDataDir/wbd8_clp.gpkg $inputDataDir/WBDHU8.gpkg
 Tcount
 
 ## CLIP DEM ##
@@ -59,7 +51,7 @@ echo -e $startDiv"Clip DEM $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/dem.tif ] && \
-gdalwarp -cutline $outputHucDataDir/wbd_projected_buffered.gpkg -crop_to_cutline -ot Int32 -r bilinear -of "GTiff" -overwrite -co "BLOCKXSIZE=512" -co "BLOCKYSIZE=512" -co "TILED=YES" -co "COMPRESS=LZW" -co "BIGTIFF=YES" $inputMosaicVRT $outputHucDataDir/dem.tif
+gdalwarp -cutline $outputHucDataDir/wbd_buffered.gpkg -crop_to_cutline -ot Int32 -r bilinear -of "GTiff" -overwrite -co "BLOCKXSIZE=512" -co "BLOCKYSIZE=512" -co "TILED=YES" -co "COMPRESS=LZW" -co "BIGTIFF=YES" $inputMosaicVRT $outputHucDataDir/dem.tif
 Tcount
 
 ## GET RASTER METADATA
@@ -176,7 +168,7 @@ echo -e $startDiv"Split Derived Reaches $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/demDerived_reaches_split.gpkg ] && \
-$libDir/split_flows.py $outputHucDataDir/demDerived_reaches.shp "$PROJ" $outputHucDataDir/dem_thalwegCond.tif $outputHucDataDir/demDerived_reaches_split.gpkg $outputHucDataDir/demDerived_reaches_split_points.gpkg $maxSplitDistance_meters $manning_n $slope_min $outputHucDataDir/wbd8_projected_clp.gpkg  $outputHucDataDir/nwm_lakes_proj_subset.gpkg
+$libDir/split_flows.py $outputHucDataDir/demDerived_reaches.shp "$PROJ" $outputHucDataDir/dem_thalwegCond.tif $outputHucDataDir/demDerived_reaches_split.gpkg $outputHucDataDir/demDerived_reaches_split_points.gpkg $maxSplitDistance_meters $manning_n $slope_min $outputHucDataDir/wbd8_clp.gpkg  $outputHucDataDir/nwm_lakes_proj_subset.gpkg
 Tcount
 
 ## GAGE WATERSHED FOR REACHES ##
@@ -224,7 +216,7 @@ echo -e $startDiv"Clip REM to HUC $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/rem_clipped.tif ] && \
-gdalwarp -cutline $outputHucDataDir/wbd_projected.gpkg -crop_to_cutline -ot Float32 -r bilinear -of "GTiff" -overwrite -co "BLOCKXSIZE=512" -co "BLOCKYSIZE=512" -co "TILED=YES" -co "COMPRESS=LZW" -co "BIGTIFF=YES" $outputHucDataDir/rem.tif $outputHucDataDir/rem_clipped.tif
+gdalwarp -cutline $outputHucDataDir/wbd.gpkg -crop_to_cutline -ot Float32 -r bilinear -of "GTiff" -overwrite -co "BLOCKXSIZE=512" -co "BLOCKYSIZE=512" -co "TILED=YES" -co "COMPRESS=LZW" -co "BIGTIFF=YES" $outputHucDataDir/rem.tif $outputHucDataDir/rem_clipped.tif
 Tcount
 
 ## BRING DISTANCE DOWN TO ZERO ##
@@ -240,7 +232,7 @@ echo -e $startDiv"Clip Catchmask to HUC $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/gw_catchments_reaches_clipped.tif ] && \
-gdalwarp -r near -cutline $outputHucDataDir/wbd_projected.gpkg -crop_to_cutline -ot Int32 -of "GTiff" -overwrite -co "BLOCKXSIZE=512" -co "BLOCKYSIZE=512" -co "TILED=YES" -co "COMPRESS=LZW" -co "BIGTIFF=YES" $outputHucDataDir/gw_catchments_reaches.tif $outputHucDataDir/gw_catchments_reaches_clipped.tif
+gdalwarp -r near -cutline $outputHucDataDir/wbd.gpkg -crop_to_cutline -ot Int32 -of "GTiff" -overwrite -co "BLOCKXSIZE=512" -co "BLOCKYSIZE=512" -co "TILED=YES" -co "COMPRESS=LZW" -co "BIGTIFF=YES" $outputHucDataDir/gw_catchments_reaches.tif $outputHucDataDir/gw_catchments_reaches_clipped.tif
 Tcount
 
 ## POLYGONIZE REACH WATERSHEDS ##
@@ -256,7 +248,7 @@ echo -e $startDiv"Clipping Model Streams to HUC $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/demDerived_reaches_split_clipped.gpkg ] && \
-ogr2ogr -progress -f GPKG -clipsrc $outputHucDataDir/wbd_projected.gpkg $outputHucDataDir/demDerived_reaches_split_clipped.gpkg $outputHucDataDir/demDerived_reaches_split.gpkg
+ogr2ogr -progress -f GPKG -clipsrc $outputHucDataDir/wbd.gpkg $outputHucDataDir/demDerived_reaches_split_clipped.gpkg $outputHucDataDir/demDerived_reaches_split.gpkg
 Tcount
 
 ## PROCESS CATCHMENTS AND MODEL STREAMS STEP 1 ##
@@ -287,7 +279,7 @@ echo -e $startDiv"Clipping Slope Raster to HUC $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/slopes_d8_burned_filled_clipped.tif ] && \
-gdalwarp -r near -cutline $outputHucDataDir/wbd_projected.gpkg -crop_to_cutline -ot Float32 -of "GTiff" -overwrite -co "BLOCKXSIZE=512" -co "BLOCKYSIZE=512" -co "TILED=YES" -co "COMPRESS=LZW" -co "BIGTIFF=YES" $outputHucDataDir/slopes_d8_burned_filled.tif $outputHucDataDir/slopes_d8_burned_filled_clipped.tif
+gdalwarp -r near -cutline $outputHucDataDir/wbd.gpkg -crop_to_cutline -ot Float32 -of "GTiff" -overwrite -co "BLOCKXSIZE=512" -co "BLOCKYSIZE=512" -co "TILED=YES" -co "COMPRESS=LZW" -co "BIGTIFF=YES" $outputHucDataDir/slopes_d8_burned_filled.tif $outputHucDataDir/slopes_d8_burned_filled_clipped.tif
 Tcount
 
 ## MASK SLOPE RASTER ##

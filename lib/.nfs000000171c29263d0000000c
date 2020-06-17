@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 '''
-Description:
-    1) split stream segments based on lake boundaries and input threshold distance
-    2) calculate channel slope, manning's n, and LengthKm for each segment 
-    3) create unique ids using HUC8 boundaries (and unique 'fossid' column)
-    4) create network traversal attribute columns (To_Node, From_Node, NextDownID)
-    5) create points layer with segment verticies encoded with HydroID's (used for catchment delineation in next step)
+Script objectives:
+    1) split stream segments based on lake boundaries (defined with ID to avoid in croswalk)
+    2) split stream segments based on threshold distance
+    3) calculate channel slope, manning's n, and LengthKm, and Waterbody value
+    4) create unique ids (ideally globally) 
+    5) create vector points encoded with HydroID's
 '''
 
 import sys
@@ -77,12 +77,13 @@ for i,lineString in tqdm(enumerate(flows.geometry),total=len(flows.geometry)):
           slope = slope_min
       slopes = slopes + [slope]
       continue
-  # Split long reaches
+
   splitLength = lineString.length / np.ceil(lineString.length / maxLength)
 
   cumulative_line = []
   line_points = []
   last_point = []
+  # linkNO = flows['LINKNO'][i]
 
   for point in zip(*lineString.coords.xy):
 
@@ -129,9 +130,8 @@ for i,lineString in tqdm(enumerate(flows.geometry),total=len(flows.geometry)):
       slope = slope_min
   slopes = slopes + [slope]
 
-split_flows_gdf = gpd.GeoDataFrame({'ManningN' : [manning] * len(split_flows),
-                                    'S0' : slopes ,'geometry':split_flows},
-                                   crs=flows.crs, geometry='geometry')
+split_flows_gdf = gpd.GeoDataFrame({'ManningN' : [manning] * len(split_flows) ,
+                                    'S0' : slopes ,'geometry':split_flows}, crs=flows.crs, geometry='geometry')
 split_flows_gdf['LengthKm'] = split_flows_gdf.geometry.length * toMetersConversion
 split_flows_gdf = gpd.sjoin(split_flows_gdf, lakes, how='left', op='within')
 split_flows_gdf = split_flows_gdf.rename(columns={"index_right": "LakeID"}).fillna(-999)
@@ -147,7 +147,7 @@ if tResults[0] == 'OK':
 else:
     print ('Error: Could not add network attributes to stream segments')
 
-# Get outlet point only
+# Get Outlet Point Only
 #outlet = OrderedDict()
 #for i,segment in split_flows_gdf.iterrows():
 #    outlet[segment.geometry.coords[-1]] = segment[HYDROID]
