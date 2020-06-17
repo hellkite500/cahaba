@@ -26,7 +26,7 @@ from utils.shared_variables import (NHD_URL_PARENT,
                                     WBD_NATIONAL_URL,
                                     FOSS_ID)
 
-from utils.shared_functions import pull_file, run_system_command
+from utils.shared_functions import pull_file, run_system_command, subset_wbd_gpkg
     
 
 def pull_and_prepare_wbd(path_to_saved_data_parent_dir):
@@ -56,15 +56,18 @@ def pull_and_prepare_wbd(path_to_saved_data_parent_dir):
         
     # Project and convert to geopackage.
     print("Projecting WBD layers and converting to geopackage...")
-    procs_list = []        
+    procs_list, wbd_gpkg_list = [], []
     for wbd_layer in ['WBDHU4', 'WBDHU6']:
         output_gpkg = os.path.join(wbd_directory, wbd_layer + '.gpkg')
+        wbd_gpkg_list.append([output_gpkg])
         procs_list.append(['ogr2ogr -overwrite -progress -f GPKG -t_srs "{projection}" {output_gpkg} {wbd_gdb_path} {wbd_layer}'.format(output_gpkg=output_gpkg, wbd_gdb_path=wbd_gdb_path, wbd_layer=wbd_layer, projection=PREP_PROJECTION)])
    
     pool = Pool(3)
     pool.map(run_system_command, procs_list)
     
     # Subset WBD layers to CONUS.
+    print("Subsetting WBD layers to CONUS...")
+    pool.map(subset_wbd_gpkg, wbd_gpkg_list)
 
 
 def pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir):
