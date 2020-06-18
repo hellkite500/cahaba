@@ -51,12 +51,12 @@ outfolder = os.path.dirname(streamlines)
 # floodAOIbuf = 7000 # "7000 METERS"
 
 # Identify origination points for AHPS and inlets and snap them onto ModelStream lines.
-print ("{}Using NWM forecast and inlet points".format("     "))
+print ("Using NWM forecast and inlet points")
 unsnapped_pts = gpd.read_file(AHPs_points, crs = projection)
 streamlines_gpd = gpd.read_file(streamlines, crs = projection)
 streamlines_splitpoints_gpd  = gpd.read_file(streamlines_splitpoints, crs = projection)
 
-print ("              Snapping forecasting points to FR stream network")
+print ("Snapping forecasting points to FR stream network")
 streamlines_union = streamlines_gpd.geometry.unary_union
 snapped_geoms = []
 snappedpoints_df = pd.DataFrame(unsnapped_pts).drop(columns=['geometry', 'X_cor_', 'Y_cor_'])
@@ -68,7 +68,7 @@ snappedpoints_df['geometry'] = snapped_geoms
 snapped_points = gpd.GeoDataFrame(snappedpoints_df, crs = projection)
 
 # get HydroID of stream segment that intersects with forecasting point
-print ("{}Tracing MS network from FR streams using AHPS points as starting points".format("     "))
+print ("Tracing MS network from FR streams using AHPS points as starting points")
 streamlinesID = streamlines_gpd.filter(items=['HydroID', 'geometry'])
 # sjoin doesn't always return HydroIDs even though it is snapped; use the function below instead
 # snapped_pointswID = gpd.sjoin(snapped_points, streamlinesID, how='left', op='intersects').drop(['index_right'], axis=1)
@@ -95,7 +95,7 @@ MSsplit_flows_gdf = streamlines_gpd[streamlines_gpd['HydroID'].isin(uniqueHydroI
 MSsplit_points_gdf = streamlines_splitpoints_gpd[streamlines_splitpoints_gpd['id'].isin(uniqueHydroIDs)]
 # MSsplit_flows_gdf.to_file(os.path.join(outfolder, 'demDerived_reaches_splitMS.gpkg'), driver='GPKG')
 
-print('Writing outputs ...')
+print('Writing vector outputs ...')
 if os.path.isfile(MSsplit_flows_fileName):                
     os.remove(MSsplit_flows_fileName)
 MSsplit_flows_gdf.to_file(MSsplit_flows_fileName,driver='GPKG',index=False)
@@ -105,10 +105,11 @@ if os.path.isfile(MSsplit_points_fileName):
 MSsplit_points_gdf.to_file(MSsplit_points_fileName,driver='GPKG',index=False)
 
 # Limit the rasters to the buffer distance around the draft streams.
-print ("{}Limiting rasters to buffer area ({} meters) around model streams".format("     ", str(floodAOIbuf)))
+print ("Limiting rasters to buffer area ({} meters) around model streams".format(str(floodAOIbuf)))
 print ("              Creating processing zone (buffer area).")
-MSsplit_flows_gdf_buffered = MSsplit_flows_gdf.unary_union.buffer(str(floodAOIbuf))
+MSsplit_flows_gdf_buffered = MSsplit_flows_gdf.unary_union.buffer(int(floodAOIbuf))
 
+print('Writing raster outputs ...')
 # Mask nhddem
 import rasterio.mask
 with rasterio.open(nhddemFR) as src:
@@ -120,7 +121,7 @@ out_meta.update({"driver": "GTiff",
      "width": out_image.shape[2],
      "transform": out_transform})
 
-with rasterio.open(os.path.join(os.path.dirname(nhddemFR), nhddemMSname + '.tiff'), "w", **out_meta) as dest:
+with rasterio.open(os.path.join(os.path.dirname(nhddemFR), nhddemMSname), "w", **out_meta) as dest:
     dest.write(out_image)
 
 # Mask fdr
@@ -133,5 +134,5 @@ out_meta.update({"driver": "GTiff",
      "width": out_image.shape[2],
      "transform": out_transform})
 
-with rasterio.open(os.path.join(os.path.dirname(fdrFR), fdrMSname + '.tiff'), "w", **out_meta) as dest:
+with rasterio.open(os.path.join(os.path.dirname(fdrFR), fdrMSname), "w", **out_meta) as dest:
     dest.write(out_image)
