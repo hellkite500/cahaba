@@ -11,8 +11,6 @@ import sys
 from multiprocessing import Pool
 import geopandas as gpd
 
-NUM_OF_WORKERS = 2
-
 from utils.shared_variables import (NHD_URL_PARENT,
                                     NHD_URL_PREFIX,
                                     NHD_RASTER_URL_SUFFIX,
@@ -44,6 +42,7 @@ def pull_and_prepare_wbd(path_to_saved_data_parent_dir):
         pull_file(WBD_NATIONAL_URL, pulled_wbd_zipped_path)
         os.system("7za x {pulled_wbd_zipped_path} -o{wbd_directory}".format(pulled_wbd_zipped_path=pulled_wbd_zipped_path, wbd_directory=wbd_directory))
         
+    procs_list, wbd_gpkg_list = [], []
     # Add fossid to HU8, project, and convert to geopackage. Code block from Brian Avant.
     print("Adding fossid to HU8...")
     wbd_hu8 = gpd.read_file(wbd_gdb_path, layer='WBDHU8')
@@ -53,13 +52,14 @@ def pull_and_prepare_wbd(path_to_saved_data_parent_dir):
     wbd_hu8[FOSS_ID] = fossids
     wbd_hu8 = wbd_hu8.to_crs(PREP_PROJECTION)
     wbd_hu8.to_file(os.path.join(wbd_directory, 'WBDHU8.gpkg'), driver='GPKG')
-        
-    # Project and convert to geopackage.
-    print("Projecting WBD layers and converting to geopackage...")
-    procs_list, wbd_gpkg_list = [], []
+    wbd_gpkg_list.append([os.path.join(wbd_directory, 'WBDHU8.gpkg'), os.path.join(wbd_directory, 'WBDHU8_conus.gpkg')])
+    
+    del wbd_hu8, fossids, n_recs
+    
     for wbd_layer in ['WBDHU4', 'WBDHU6']:
         output_gpkg = os.path.join(wbd_directory, wbd_layer + '.gpkg')
-        wbd_gpkg_list.append([output_gpkg])
+        output_gpkg_conus = os.path.join(wbd_directory, wbd_layer + '_conus.gpkg')
+        wbd_gpkg_list.append([output_gpkg, output_gpkg_conus])
         procs_list.append(['ogr2ogr -overwrite -progress -f GPKG -t_srs "{projection}" {output_gpkg} {wbd_gdb_path} {wbd_layer}'.format(output_gpkg=output_gpkg, wbd_gdb_path=wbd_gdb_path, wbd_layer=wbd_layer, projection=PREP_PROJECTION)])
    
     pool = Pool(3)
@@ -67,7 +67,8 @@ def pull_and_prepare_wbd(path_to_saved_data_parent_dir):
     
     # Subset WBD layers to CONUS.
     print("Subsetting WBD layers to CONUS...")
-    pool.map(subset_wbd_gpkg, wbd_gpkg_list)
+    for pair in wbd_gpkg_list:
+        subset_wbd_gpkg(pair)
 
 
 def pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir):
@@ -96,19 +97,27 @@ def pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir):
         procs_list = []
         for nwm_layer in ['nwm_reaches_conus', 'nwm_waterbodies_conus', 'nwm_catchments_conus']:
             output_gpkg = os.path.join(nwm_hydrofabric_directory, nwm_layer + '.gpkg')
-            procs_list.append(['ogr2ogr -overwrite -progress -f GPKG -t_srs "{projection}" {output_gpkg} {nwm_hydrofabric_gdb} {gdb_layer}'.format(projection=PREP_PROJECTION, output_gpkg=output_gpkg, nwm_hydrofabric_gdb=nwm_hydrofabric_gdb, nwm_layer=nwm_layer)])        
+            procs_list.append(['ogr2ogr -overwrite -progress -f GPKG -t_srs "{projection}" {output_gpkg} {nwm_hydrofabric_gdb} {nwm_layer}'.format(projection=PREP_PROJECTION, output_gpkg=output_gpkg, nwm_hydrofabric_gdb=nwm_hydrofabric_gdb, nwm_layer=nwm_layer)])        
             
         pool = Pool(4)
         pool.map(run_system_command, procs_list)
             
 
-def pull_and_prepare_nhd_data(procs_list):
+def pull_and_prepare_nhd_data(args):
+    """
+    This helper function is designed to be multiprocessed. It pulls and unzips NHD raster and vector data.
+    
+    Args:
+        args (list): A list of arguments in this format: [nhd_raster_download_url, nhd_raster_extraction_path, nhd_vector_download_url, nhd_vector_extraction_path]
+    
+    """
+    
     
     # Parse urls and extraction paths from procs_list.
-    nhd_raster_download_url = procs_list[0]
-    nhd_raster_extraction_path = procs_list[1]
-    nhd_vector_download_url = procs_list[2]
-    nhd_vector_extraction_path = procs_list[3]
+    nhd_raster_download_url = args[0]
+    nhd_raster_extraction_path = args[1]
+    nhd_vector_download_url = args[2]
+    nhd_vector_extraction_path = args[3]
     
     nhd_gdb = nhd_vector_extraction_path.replace('.zip', '.gdb')  # Update extraction path from .zip to .gdb. 
 
@@ -167,7 +176,7 @@ def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_d
         
     # Construct paths to data to download and append to procs_list for multiprocessed pull, project, and converstion to geopackage.
     for huc in huc_list:
-        huc = str(huc[0])
+        huc = str(huc[0])  # Ensure huc is string.
     
         # Construct URL and extraction path for NHDPlus raster.
         nhd_raster_download_url = os.path.join(NHD_URL_PARENT, NHD_URL_PREFIX + huc + NHD_RASTER_URL_SUFFIX)
@@ -184,7 +193,7 @@ def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_d
         nhd_procs_list.append([nhd_raster_download_url, nhd_raster_extraction_path, nhd_vector_download_url, nhd_vector_extraction_path])
         
     # Pull and prepare NHD data.
-    pool = Pool(NUM_OF_WORKERS)
+    pool = Pool(3)
     pool.map(pull_and_prepare_nhd_data, nhd_procs_list)
     
     # Pull and prepare NWM data.
@@ -202,18 +211,3 @@ if __name__ == '__main__':
     
     manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir)
             
-    
-"""
-on the config file, you can name what you want as long as that variable reflects it `export input_WBD_gdb=$inputDataDir/WBD_National_GDB.gdb
-`
-`export input_WBD_gdb=$inputDataDir/WBD_National_GDB.gdb
-`
-ahhhh why won't it format
-anyways that's it
-
-line 16 in run_by_unit.sh already designates which layer name to pull as they appear in the original GDB file `input_NHD_WBHD_layer=WBDHU$hucUnitLength`
-so as long as you hard-code that as discussed you should be fine
-    
-"""
-    
-    
