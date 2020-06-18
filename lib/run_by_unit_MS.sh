@@ -200,7 +200,7 @@ echo -e $startDiv"Trim MS Reach Network $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/demDerived_reaches_splitMS.gpkg ] && \
-$libDir/FRtoMSconversion.py "$PROJ" $outputHucDataDir/demDerived_reaches_split.gpkg $outputHucDataDir/demDerived_reaches_split_points.gpkg   $outputHucDataDir/ahps_points_clip.gpkg $outputHucDataDir/demDerived_reaches_splitMS.gpkg $outputHucDataDir/demDerived_reaches_split_pointsMS.gpkg 
+$libDir/FRtoMSconversion.py "$PROJ" $outputHucDataDir/demDerived_reaches_split.gpkg $outputHucDataDir/demDerived_reaches_split_points.gpkg $outputHucDataDir/ahps_points_clip.gpkg $outputHucDataDir/demDerived_reaches_splitMS.gpkg $outputHucDataDir/demDerived_reaches_split_pointsMS.gpkg $outputHucDataDir/flowdir_d8_burned_filled.tif $outputHucDataDir/dem_thalwegCond.tif $outputHucDataDir/flowdir_d8_MS.tif $outputHucDataDir/dem_thalwegCond_MS.tif 7000
 Tcount
 
 ## GAGE WATERSHED FOR REACHES ##
@@ -208,7 +208,7 @@ echo -e $startDiv"Gage Watershed for Reaches $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/gw_catchments_reaches.tif ] && \
-mpiexec -n $ncores_gw $taudemDir/gagewatershed -p $outputHucDataDir/flowdir_d8_burned_filled.tif -gw $outputHucDataDir/gw_catchments_reaches.tif -o $outputHucDataDir/demDerived_reaches_split_pointsMS.gpkg -id $outputHucDataDir/idFile.txt
+mpiexec -n $ncores_gw $taudemDir/gagewatershed -p $outputHucDataDir/flowdir_d8_MS.tif -gw $outputHucDataDir/gw_catchments_reaches.tif -o $outputHucDataDir/demDerived_reaches_split_pointsMS.gpkg -id $outputHucDataDir/idFile.txt
 Tcount
 
 ## VECTORIZE FEATURE ID CENTROIDS ##
@@ -224,7 +224,7 @@ echo -e $startDiv"Gage Watershed for Pixels $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/gw_catchments_pixels.tif ] && \
-mpiexec -n $ncores_gw $taudemDir/gagewatershed -p $outputHucDataDir/flowdir_d8_burned_filled.tif -gw $outputHucDataDir/gw_catchments_pixels.tif -o $outputHucDataDir/flows_points_pixels.gpkg -id $outputHucDataDir/idFile.txt
+mpiexec -n $ncores_gw $taudemDir/gagewatershed -p $outputHucDataDir/flowdir_d8_MS.tif -gw $outputHucDataDir/gw_catchments_pixels.tif -o $outputHucDataDir/flows_points_pixels.gpkg -id $outputHucDataDir/idFile.txt
 Tcount
 
 # D8 REM ##
@@ -232,7 +232,7 @@ echo -e $startDiv"D8 REM $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/rem.tif ] && \
-$libDir/rem.py -d $outputHucDataDir/dem_thalwegCond.tif -w $outputHucDataDir/gw_catchments_pixels.tif -o $outputHucDataDir/rem.tif 
+$libDir/rem.py -d $outputHucDataDir/dem_thalwegCond_MS.tif -w $outputHucDataDir/gw_catchments_pixels.tif -o $outputHucDataDir/rem.tif 
 Tcount
 
 ## DINF DISTANCE DOWN ##

@@ -54,7 +54,7 @@ class BuildStreamTraversalColumns(object):
                 modelstream = modelstream.rename(columns={"HYDROID": HYDROID}).sort_values(HYDROID)
                 modelstream = modelstream.drop(columns=['HUC8id', 'seqID'])
                 modelstream[HYDROID] = modelstream[HYDROID].astype(int)
-                print ('Generated ' + HYDROID + ' Successfully')
+                print ('    Generated ' + HYDROID + ' Successfully')
             
             # Check for TO/From Nodes; Assign if doesnt exist
             bOK = True           
@@ -109,7 +109,7 @@ class BuildStreamTraversalColumns(object):
                     print ("Some of the input features have a null shape.")
                     print (FN_FROMNODE + " and " + FN_TONODE + " fields cannot be populated for those features.")
                 else:          
-                    print ('Generated To/From Nodes Successfully')
+                    print ('    Generated To/From Nodes Successfully')
                 
             # Create NextDownID field
             if not FN_NEXTDOWNID in modelstream.columns:
