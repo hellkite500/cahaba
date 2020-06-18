@@ -41,7 +41,7 @@ def run_system_command(args):
 def subset_wbd_gpkg(args):
     
     import geopandas as gp
-    from utils.shared_variables import CONUS_STATE_LIST
+    from utils.shared_variables import CONUS_STATE_LIST, PREP_PROJECTION
     
     # Parse geopackage path.
     wbd_gpkg = args[0]
@@ -51,7 +51,7 @@ def subset_wbd_gpkg(args):
     
     # Read geopackage into dataframe.
     wbd = gp.read_file(wbd_gpkg)
-    gdf=gp.GeoDataFrame(wbd)
+    gdf = gp.GeoDataFrame(wbd)
         
     for index, row in gdf.iterrows():
         state = row["STATES"]
@@ -69,6 +69,8 @@ def subset_wbd_gpkg(args):
                 gdf.drop(index, inplace=True)  # Delete from dataframe.
 
     # Overwrite geopackage.
+    
+    gdf.crs = PREP_PROJECTION
     gdf.to_file(wbd_gpkg_conus_output, driver='GPKG')
 
 
