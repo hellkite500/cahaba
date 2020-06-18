@@ -24,8 +24,6 @@ def trace():
 FN_FROMNODE = "From_Node"
 FN_TONODE = "To_Node"
 FN_NEXTDOWNID = "NextDownID"
-FN_FROMNODE = "From_Node"
-FN_TONODE = "To_Node"
 
 class BuildStreamTraversalColumns(object):
     '''Tool class for updating the next down IDs of stream features.'''
