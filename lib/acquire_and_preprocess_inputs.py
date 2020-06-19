@@ -167,7 +167,6 @@ def pull_and_prepare_nhd_data(args):
         nhd_vector_extraction_parent = os.path.dirname(nhd_vector_extraction_path)
         huc = os.path.split(nhd_vector_extraction_parent)[1]  # Parse HUC.
         os.system("7za x {nhd_vector_extraction_path} -o{nhd_vector_extraction_parent}".format(nhd_vector_extraction_path=nhd_vector_extraction_path, nhd_vector_extraction_parent=nhd_vector_extraction_parent))
-        delete_file(nhd_vector_extraction_path)  # Delete the zipped GDB.
         
         # -- Project and convert NHDPlusBurnLineEvent and NHDPlusFlowLineVAA vectors to geopackage -- #
         for nhd_layer in ['NHDPlusBurnLineEvent', 'NHDPlusFlowlineVAA']:
@@ -176,7 +175,7 @@ def pull_and_prepare_nhd_data(args):
     
     # Delete unnecessary files.
     delete_file(nhd_vector_extraction_path.replace('.zip', '.jpg'))
-
+    delete_file(nhd_vector_extraction_path)  # Delete the zipped GDB.
     
 def build_huc_list_files(path_to_saved_data_parent_dir, wbd_directory):
     """
