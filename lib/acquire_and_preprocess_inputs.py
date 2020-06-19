@@ -53,7 +53,7 @@ def pull_and_prepare_wbd(path_to_saved_data_parent_dir, overwrite_wbd_geopackage
             
     multilayer_wbd_geopackage = os.path.join(wbd_directory, 'WBD_National.gpkg')
     
-    if not multilayer_wbd_geopackage or overwrite_wbd_geopackages_flag:
+    if not os.path.exists(multilayer_wbd_geopackage) or overwrite_wbd_geopackages_flag:
         # Download WBD and unzip if it's not already done.
         if not os.path.exists(wbd_gdb_path):
             if not os.path.exists(pulled_wbd_zipped_path):
