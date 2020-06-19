@@ -22,6 +22,19 @@ def pull_file(url, full_pulled_filepath):
     urllib.request.urlretrieve(url, full_pulled_filepath)
 
         
+def delete_file(file_path):
+    """
+    This helper function deletes a file.
+    
+    Args:
+        file_path (str): System path to a file to be deleted.
+    """
+    
+    try:
+        os.remove(file_path)
+    except FileNotFoundError:
+        pass
+    
 def run_system_command(args):
     """
     This helper function takes a system command and runs it. This function is designed for use
@@ -38,17 +51,12 @@ def run_system_command(args):
     os.system(command)
     
     
-def subset_wbd_gpkg(args):
+def subset_wbd_gpkg(wbd_gpkg, multilayer_wbd_geopackage):
     
     import geopandas as gp
     from utils.shared_variables import CONUS_STATE_LIST, PREP_PROJECTION
     
-    # Parse geopackage path.
-    wbd_gpkg = args[0]
-    wbd_gpkg_conus_output = args[1]
-    
     print("Subsetting " + wbd_gpkg + "...")
-    
     # Read geopackage into dataframe.
     wbd = gp.read_file(wbd_gpkg)
     gdf = gp.GeoDataFrame(wbd)
@@ -69,9 +77,9 @@ def subset_wbd_gpkg(args):
                 gdf.drop(index, inplace=True)  # Delete from dataframe.
 
     # Overwrite geopackage.
-    
+    layer_name = os.path.split(wbd_gpkg)[1].strip('.gpkg')
     gdf.crs = PREP_PROJECTION
-    gdf.to_file(wbd_gpkg_conus_output, driver='GPKG')
+    gdf.to_file(multilayer_wbd_geopackage, layer=layer_name, driver='GPKG')
 
 
     

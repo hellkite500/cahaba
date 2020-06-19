@@ -24,28 +24,29 @@ from utils.shared_variables import (NHD_URL_PARENT,
                                     WBD_NATIONAL_URL,
                                     FOSS_ID)
 
-from utils.shared_functions import pull_file, run_system_command, subset_wbd_gpkg
+from utils.shared_functions import pull_file, run_system_command, subset_wbd_gpkg, delete_file
     
-
 NHDPLUS_VECTORS_DIRNAME = 'nhdplus_vectors'
 NHDPLUS_RASTERS_DIRNAME = 'nhdplus_rasters'
+
 
 def pull_and_prepare_wbd(path_to_saved_data_parent_dir):
     """
     This helper function pulls and unzips Watershed Boundary Dataset (WBD) data. It uses the WBD URL defined by WBD_NATIONAL_URL.
+    This function also subsets the WBD layers (HU4, HU6, HU8) to CONUS and converts to geopkacage layers.
     
     Args:
         path_to_saved_data_parent_dir (str): The system path to where the WBD will be downloaded, unzipped, and preprocessed.
     
     """
     
-    # -- Acquire and preprocesses NWM data -- #
+    # Construct path to wbd_directory and create if not existent.
     wbd_directory = os.path.join(path_to_saved_data_parent_dir, 'wbd')
     if not os.path.exists(wbd_directory):
         os.mkdir(wbd_directory)
     
     wbd_gdb_path = os.path.join(wbd_directory, 'WBD_National_GDB.gdb')
-    
+
     # Pull and unzip WBD_National_GDB.zip and project and convert to geopackage if not already done previously.
     if not os.path.exists(wbd_gdb_path):
         pulled_wbd_zipped_path = os.path.join(wbd_directory, 'WBD_National_GDB.zip')
@@ -62,24 +63,35 @@ def pull_and_prepare_wbd(path_to_saved_data_parent_dir):
         wbd_hu8[FOSS_ID] = fossids
         wbd_hu8 = wbd_hu8.to_crs(PREP_PROJECTION)
         wbd_hu8.to_file(os.path.join(wbd_directory, 'WBDHU8.gpkg'), driver='GPKG')
-        wbd_gpkg_list.append([os.path.join(wbd_directory, 'WBDHU8.gpkg'), os.path.join(wbd_directory, 'WBDHU8_conus.gpkg')])
+        wbd_gpkg_list.append(os.path.join(wbd_directory, 'WBDHU8.gpkg'))
         
         del wbd_hu8, fossids, n_recs
-        
+            
+        # Prepare procs_list for multiprocessed geopackaging.
         for wbd_layer in ['WBDHU4', 'WBDHU6']:
             output_gpkg = os.path.join(wbd_directory, wbd_layer + '.gpkg')
-            output_gpkg_conus = os.path.join(wbd_directory, wbd_layer + '_conus.gpkg')
-            wbd_gpkg_list.append([output_gpkg, output_gpkg_conus])
+            wbd_gpkg_list.append(output_gpkg)
             procs_list.append(['ogr2ogr -overwrite -progress -f GPKG -t_srs "{projection}" {output_gpkg} {wbd_gdb_path} {wbd_layer}'.format(output_gpkg=output_gpkg, wbd_gdb_path=wbd_gdb_path, wbd_layer=wbd_layer, projection=PREP_PROJECTION)])
        
-    pool = Pool(3)
-    pool.map(run_system_command, procs_list)
-    
-    # Subset WBD layers to CONUS.
-    print("Subsetting WBD layers to CONUS...")
-    for pair in wbd_gpkg_list:
-        subset_wbd_gpkg(pair)
+        pool = Pool(3)
+        pool.map(run_system_command, procs_list)
         
+        # Subset WBD layers to CONUS and add to single geopackage.
+        print("Subsetting WBD layers to CONUS...")
+        multilayer_wbd_geopackage = os.path.join(wbd_directory, 'WBD_National.gpkg')
+        for gpkg in wbd_gpkg_list:
+            subset_wbd_gpkg(gpkg, multilayer_wbd_geopackage)
+            
+        # Clean up temporary files.
+        for temp_layer in ['WBDHU4', 'WBDHU6', 'WBDHU8']:
+            delete_file(os.path.join(wbd_directory, temp_layer + '.gpkg'))
+        
+        pulled_wbd_zipped_path = os.path.join(wbd_directory, 'WBD_National_GDB.zip')
+        
+        delete_file(pulled_wbd_zipped_path)
+    #    delete_file(wbd_gdb_path)  # Commenting for now in case it should be used in validation.
+        delete_file(os.path.join(wbd_directory, 'WBD_National_GDB.jpg'))
+            
     return(wbd_directory)
             
 
@@ -88,10 +100,10 @@ def pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir):
     This helper function pulls and unzips NWM hydrofabric data. It uses the NWM hydrofabric URL defined by NWM_HYDROFABRIC_URL.
     
     Args:
-        path_to_saved_data_parent_dir (str): The system path to where the NWM hydrofabric will be downloaded, unzipped, and preprocessed.
+        path_to_saved_data_parent_dir (str): The system path to where a 'nwm' subdirectory will be created and where NWM hydrofabric
+        will be downloaded, unzipped, and preprocessed.
         
     """
-    
     
     # -- Acquire and preprocess NWM data -- #
     nwm_hydrofabric_directory = os.path.join(path_to_saved_data_parent_dir, 'nwm_hydrofabric')
@@ -109,8 +121,8 @@ def pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir):
         os.system("7za x {pulled_hydrofabric_tar_path} -o{nwm_hydrofabric_directory}".format(pulled_hydrofabric_tar_path=pulled_hydrofabric_tar_path, nwm_hydrofabric_directory=nwm_hydrofabric_directory))
         
         # Delete temporary zip files.
-        os.remove(pulled_hydrofabric_tar_gz_path)
-        os.remove(pulled_hydrofabric_tar_path)
+        delete_file(pulled_hydrofabric_tar_gz_path)
+        delete_file(pulled_hydrofabric_tar_path)
         
         # Project and convert to geopackage.
         print("Projecting and converting NWM layers to geopackage...")
@@ -155,16 +167,28 @@ def pull_and_prepare_nhd_data(args):
         
         # Unzip vector and delete zipped file.
         os.system("7za x {nhd_vector_extraction_path} -o{nhd_vector_extraction_parent}".format(nhd_vector_extraction_path=nhd_vector_extraction_path, nhd_vector_extraction_parent=nhd_vector_extraction_parent))
-        os.remove(nhd_vector_extraction_path)  # Delete the zipped GDB.
+        delete_file(nhd_vector_extraction_path)  # Delete the zipped GDB.
         
         # -- Project and convert NHDPlusBurnLineEvent and NHDPlusFlowLineVAA vectors to geopackage -- #
         for nhd_layer in ['NHDPlusBurnLineEvent', 'NHDPlusFlowlineVAA']:
             output_gpkg = os.path.join(nhd_vector_extraction_parent, nhd_layer + huc + '.gpkg')
             run_system_command(['ogr2ogr -overwrite -progress -f GPKG -t_srs "{projection}" {output_gpkg} {nhd_gdb} {nhd_layer}'.format(projection=PREP_PROJECTION, output_gpkg=output_gpkg, nhd_gdb=nhd_gdb, nhd_layer=nhd_layer)])  # Use list because function is configured for multiprocessing.
     
+    # Delete unnecessary files.
+    delete_file(nhd_vector_extraction_path.replace('.zip', '.jpg'))
+
     
 def build_huc_list_files(path_to_saved_data_parent_dir, wbd_directory):
+    """
+    This function builds a list of available HUC4s, HUC6s, and HUC8s and saves the lists to .lst files.
     
+    Args:
+        path_to_saved_data_parent_dir (str): The path to the parent directory where the .lst files will be saved.
+        wbd_directory (str): The path to the directory storing the WBD geopackages which are used to determine which HUCs are available for processing.
+    
+    """
+    
+    print("Building included HUC lists...")
     # Identify all saved NHDPlus Vectors.
     nhd_plus_vector_dir = os.path.join(path_to_saved_data_parent_dir, NHDPLUS_VECTORS_DIRNAME)
     
@@ -173,13 +197,13 @@ def build_huc_list_files(path_to_saved_data_parent_dir, wbd_directory):
     huc6_list, huc8_list = [], []
     # Read WBD into dataframe.
     
-    huc_gpkg_list = ['WBDHU6', 'WBDHU8']
+    huc_gpkg_list = ['WBDHU6', 'WBDHU8']  # The WBDHU4 are handled by the nhd_plus_vector_dir name.
     
     for huc_gpkg in huc_gpkg_list:
-        full_huc_gpkg = os.path.join(wbd_directory, huc_gpkg + '_conus.gpkg')
+        full_huc_gpkg = os.path.join(wbd_directory, 'WBD_National.gpkg')
     
         # Open geopackage.
-        wbd = gp.read_file(full_huc_gpkg)
+        wbd = gp.read_file(full_huc_gpkg, layer=huc_gpkg)
         gdf = gp.GeoDataFrame(wbd)
         
         # Loop through entries and compare against the huc4_list to get available HUCs within the geopackage domain.
@@ -198,6 +222,7 @@ def build_huc_list_files(path_to_saved_data_parent_dir, wbd_directory):
     included_huc6_file = os.path.join(path_to_saved_data_parent_dir, 'included_huc6.lst')
     included_huc8_file = os.path.join(path_to_saved_data_parent_dir, 'included_huc8.lst')
     
+    # Overly verbose file writing loops. Doing this in a pinch.
     with open(included_huc4_file, 'w') as f:
         for item in huc4_list:
             f.write("%s\n" % item)
