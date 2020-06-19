@@ -11,9 +11,10 @@ mkdir $outputHucDataDir
 ## SET VARIABLES AND FILE INPUTS ##
 hucUnitLength=${#hucNumber}
 huc4Identifier=${hucNumber:0:4}
-input_NHD_Flowlines=$inputDataDir/NHDPlusBurnLineEvent_"$huc4Identifier"_proj.gpkg
-input_NHD_VAA=$inputDataDir/NHDPlusFlowlineVAA_"$huc4Identifier".gpkg
+input_NHD_Flowlines=$inputDataDir/nhdplus_vectors/"$huc4Identifier"/NHDPlusBurnLineEvent"$huc4Identifier".gpkg
+input_NHD_VAA=$inputDataDir/nhdplus_vectors/"$huc4Identifier"/NHDPlusFlowlineVAA"$huc4Identifier".gpkg
 input_NHD_WBHD_layer=WBDHU$hucUnitLength
+input_DEM=$inputDataDir/nhdplus_rasters/HRNHDPlusRasters"$huc4Identifier"/elev_cm.tif
 
 ## GET WBD ##
 echo -e $startDiv"Get WBD $hucNumber"$stopDiv
@@ -28,7 +29,7 @@ echo -e $startDiv"Buffer WBD $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/wbd_buffered.gpkg ] && \
-ogr2ogr -f GPKG -dialect sqlite -sql "select ST_buffer(geom, $bufferDistance) from 'WBDHU$hucUnitLength'" $outputHucDataDir/wbd_buffered.gpkg $outputHucDataDir/wbd.gpkg
+ogr2ogr -f GPKG -dialect sqlite -sql "select ST_buffer(geom, 5000) from 'WBDHU$hucUnitLength'" $outputHucDataDir/wbd_buffered.gpkg $outputHucDataDir/wbd.gpkg
 Tcount
 
 ## GET STREAMS ##
@@ -43,7 +44,7 @@ Tcount
 echo -e $startDiv"Clip WBD8"$stopDiv
 date -u
 Tstart
-ogr2ogr -f GPKG -clipsrc $outputHucDataDir/wbd_buffered.gpkg $outputHucDataDir/wbd8_clp.gpkg $inputDataDir/WBDHU8.gpkg
+ogr2ogr -f GPKG -clipsrc $outputHucDataDir/wbd_buffered.gpkg $outputHucDataDir/wbd8_clp.gpkg $inputDataDir/wbd/WBD_National.gpkg WBDHU8
 Tcount
 
 ## CLIP DEM ##
@@ -51,7 +52,7 @@ echo -e $startDiv"Clip DEM $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/dem.tif ] && \
-gdalwarp -cutline $outputHucDataDir/wbd_buffered.gpkg -crop_to_cutline -ot Int32 -r bilinear -of "GTiff" -overwrite -co "BLOCKXSIZE=512" -co "BLOCKYSIZE=512" -co "TILED=YES" -co "COMPRESS=LZW" -co "BIGTIFF=YES" $inputMosaicVRT $outputHucDataDir/dem.tif
+gdalwarp -cutline $outputHucDataDir/wbd_buffered.gpkg -crop_to_cutline -ot Int32 -r bilinear -of "GTiff" -overwrite -co "BLOCKXSIZE=512" -co "BLOCKYSIZE=512" -co "TILED=YES" -co "COMPRESS=LZW" -co "BIGTIFF=YES" $input_DEM $outputHucDataDir/dem.tif
 Tcount
 
 ## GET RASTER METADATA

@@ -8,6 +8,7 @@ Created on Thu Jun  4 10:58:34 2020
 import os
 import csv
 import sys
+import shutil
 from multiprocessing import Pool
 import geopandas as gp
 
@@ -15,8 +16,6 @@ from utils.shared_variables import (NHD_URL_PARENT,
                                     NHD_URL_PREFIX,
                                     NHD_RASTER_URL_SUFFIX,
                                     NHD_VECTOR_URL_SUFFIX,
-                                    NHD_RASTER_EXTRACTION_PREFIX,
-                                    NHD_RASTER_EXTRACTION_SUFFIX,
                                     NHD_VECTOR_EXTRACTION_PREFIX,
                                     NHD_VECTOR_EXTRACTION_SUFFIX,
                                     PREP_PROJECTION,
@@ -155,11 +154,28 @@ def pull_and_prepare_nhd_data(args):
 
     # Download raster and vector, if not already in user's directory (exist check performed by pull_file()).
     nhd_raster_extraction_parent = os.path.dirname(nhd_raster_extraction_path)
-    if not os.path.exists(nhd_raster_extraction_parent):
-        os.mkdir(nhd_raster_extraction_parent)
     
     if not os.path.exists(nhd_raster_extraction_path) or overwrite_nhd_data_flag:
         pull_file(nhd_raster_download_url, nhd_raster_extraction_path)
+        os.system("7za x {nhd_raster_extraction_path} -o{nhd_raster_extraction_parent}".format(nhd_raster_extraction_path=nhd_raster_extraction_path, nhd_raster_extraction_parent=nhd_raster_extraction_parent))
+    
+    huc = nhd_raster_extraction_path.split('_')[3]
+    nhd_raster_parent_dir = os.path.join(nhd_raster_extraction_parent, 'HRNHDPlusRasters' + huc)
+    
+    print("Deleting unneccessary raster files...")
+    file_list = os.listdir(nhd_raster_parent_dir)
+    for f in file_list:
+        full_path = os.path.join(nhd_raster_parent_dir, f)
+        if 'elev_cm' not in f:
+            if os.path.isdir(full_path):
+                shutil.rmtree(full_path)
+            elif os.path.isfile(full_path):
+                os.remove(full_path)
+                
+    # Change projection for elev_cm.tif.
+    print("Projecting elev_cm...")
+    elev_cm_tif = os.path.join(nhd_raster_parent_dir, 'elev_cm.tif')
+    run_system_command(['gdal_edit.py -a_srs "{projection}" {elev_cm_tif}'.format(projection=PREP_PROJECTION, elev_cm_tif=elev_cm_tif)])
         
     if not os.path.exists(nhd_gdb) or overwrite_nhd_data_flag:  # Only pull if not already pulled and processed.
         # Download and fully unzip downloaded GDB.
@@ -272,7 +288,7 @@ def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_d
     
         # Construct URL and extraction path for NHDPlus raster.
         nhd_raster_download_url = os.path.join(NHD_URL_PARENT, NHD_URL_PREFIX + huc + NHD_RASTER_URL_SUFFIX)
-        nhd_raster_extraction_path = os.path.join(nhd_raster_dir, NHD_RASTER_EXTRACTION_PREFIX + huc, NHD_RASTER_EXTRACTION_SUFFIX)
+        nhd_raster_extraction_path = os.path.join(nhd_raster_dir, NHD_URL_PREFIX + huc + NHD_RASTER_URL_SUFFIX)
         
         # Construct URL and extraction path for NHDPlus vector. Organize into huc-level subdirectories.
         nhd_vector_download_url = os.path.join(NHD_URL_PARENT, NHD_URL_PREFIX + huc + NHD_VECTOR_URL_SUFFIX)
