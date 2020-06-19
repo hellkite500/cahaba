@@ -177,6 +177,7 @@ def pull_and_prepare_nhd_data(args):
     delete_file(nhd_vector_extraction_path.replace('.zip', '.jpg'))
     delete_file(nhd_vector_extraction_path)  # Delete the zipped GDB.
     
+    
 def build_huc_list_files(path_to_saved_data_parent_dir, wbd_directory):
     """
     This function builds a list of available HUC4s, HUC6s, and HUC8s and saves the lists to .lst files.
