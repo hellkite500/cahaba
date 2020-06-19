@@ -36,3 +36,7 @@ CONUS_STATE_LIST = ["AL", "AZ", "AR", "CA", "CO", "CT", "DC", "DE", "FL", "GA",
                     "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", 
                     "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", 
                     "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"]
+
+OVERWRITE_WBD = 'OVERWRITE_WBD'
+OVERWRITE_NHD = 'OVERWRITE_NHD'
+OVERWRITE_ALL = 'OVERWRITE_ALL'

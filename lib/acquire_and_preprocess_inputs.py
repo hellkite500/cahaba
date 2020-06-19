@@ -22,7 +22,10 @@ from utils.shared_variables import (NHD_URL_PARENT,
                                     PREP_PROJECTION,
                                     NWM_HYDROFABRIC_URL, 
                                     WBD_NATIONAL_URL,
-                                    FOSS_ID)
+                                    FOSS_ID, 
+                                    OVERWRITE_WBD,
+                                    OVERWRITE_NHD,
+                                    OVERWRITE_ALL)
 
 from utils.shared_functions import pull_file, run_system_command, subset_wbd_gpkg, delete_file
     
@@ -30,7 +33,7 @@ NHDPLUS_VECTORS_DIRNAME = 'nhdplus_vectors'
 NHDPLUS_RASTERS_DIRNAME = 'nhdplus_rasters'
 
 
-def pull_and_prepare_wbd(path_to_saved_data_parent_dir):
+def pull_and_prepare_wbd(path_to_saved_data_parent_dir, overwrite_wbd_geopackages_flag):
     """
     This helper function pulls and unzips Watershed Boundary Dataset (WBD) data. It uses the WBD URL defined by WBD_NATIONAL_URL.
     This function also subsets the WBD layers (HU4, HU6, HU8) to CONUS and converts to geopkacage layers.
@@ -45,28 +48,29 @@ def pull_and_prepare_wbd(path_to_saved_data_parent_dir):
     if not os.path.exists(wbd_directory):
         os.mkdir(wbd_directory)
     
+    # Download zipped WBD if not alread downloaded.
     wbd_gdb_path = os.path.join(wbd_directory, 'WBD_National_GDB.gdb')
-
-    # Pull and unzip WBD_National_GDB.zip and project and convert to geopackage if not already done previously.
-    if not os.path.exists(wbd_gdb_path):
-        pulled_wbd_zipped_path = os.path.join(wbd_directory, 'WBD_National_GDB.zip')
+    pulled_wbd_zipped_path = os.path.join(wbd_directory, 'WBD_National_GDB.zip')
+    if not os.path.exists(pulled_wbd_zipped_path) or overwrite_wbd_geopackages_flag:
         pull_file(WBD_NATIONAL_URL, pulled_wbd_zipped_path)
-        os.system("7za x {pulled_wbd_zipped_path} -o{wbd_directory}".format(pulled_wbd_zipped_path=pulled_wbd_zipped_path, wbd_directory=wbd_directory))
         
+    # Unzip WBD if not already unzipped.
+    if not os.path.exists(wbd_gdb_path):
+        os.system("7za x {pulled_wbd_zipped_path} -o{wbd_directory}".format(pulled_wbd_zipped_path=pulled_wbd_zipped_path, wbd_directory=wbd_directory))
+            
+    multilayer_wbd_geopackage = os.path.join(wbd_directory, 'WBD_National.gpkg')
+    
+    if not multilayer_wbd_geopackage or overwrite_wbd_geopackages_flag:
         procs_list, wbd_gpkg_list = [], []
         # Add fossid to HU8, project, and convert to geopackage. Code block from Brian Avant.
         print("Adding fossid to HU8...")
-        wbd_hu8 = gp.read_file(wbd_gdb_path, layer='WBDHU8')
-        wbd_hu8 = wbd_hu8.sort_values('HUC8')
-        n_recs = len(wbd_hu8)
-        fossids = [str(item).zfill(4) for item in list(range(1, 1 + n_recs))]
+        wbd_hu8 = gp.read_file(wbd_gdb_path, layer='WBDHU8').sort_values('HUC8')
+        fossids = [str(item).zfill(4) for item in list(range(1, 1 + len(wbd_hu8)))]
         wbd_hu8[FOSS_ID] = fossids
-        wbd_hu8 = wbd_hu8.to_crs(PREP_PROJECTION)
-        wbd_hu8.to_file(os.path.join(wbd_directory, 'WBDHU8.gpkg'), driver='GPKG')
-        wbd_gpkg_list.append(os.path.join(wbd_directory, 'WBDHU8.gpkg'))
-        
-        del wbd_hu8, fossids, n_recs
-            
+        wbd_hu8 = wbd_hu8.to_crs(PREP_PROJECTION)  # Project.
+        wbd_hu8.to_file(os.path.join(wbd_directory, 'WBDHU8.gpkg'), driver='GPKG')  # Save.
+        wbd_gpkg_list.append(os.path.join(wbd_directory, 'WBDHU8.gpkg'))  # Append to wbd_gpkg_list for subsetting later.
+                
         # Prepare procs_list for multiprocessed geopackaging.
         for wbd_layer in ['WBDHU4', 'WBDHU6']:
             output_gpkg = os.path.join(wbd_directory, wbd_layer + '.gpkg')
@@ -81,17 +85,15 @@ def pull_and_prepare_wbd(path_to_saved_data_parent_dir):
         multilayer_wbd_geopackage = os.path.join(wbd_directory, 'WBD_National.gpkg')
         for gpkg in wbd_gpkg_list:
             subset_wbd_gpkg(gpkg, multilayer_wbd_geopackage)
-            
-        # Clean up temporary files.
-        for temp_layer in ['WBDHU4', 'WBDHU6', 'WBDHU8']:
-            delete_file(os.path.join(wbd_directory, temp_layer + '.gpkg'))
         
-        pulled_wbd_zipped_path = os.path.join(wbd_directory, 'WBD_National_GDB.zip')
-        
-        delete_file(pulled_wbd_zipped_path)
-    #    delete_file(wbd_gdb_path)  # Commenting for now in case it should be used in validation.
-        delete_file(os.path.join(wbd_directory, 'WBD_National_GDB.jpg'))
-            
+    # Clean up temporary files.
+    for temp_layer in ['WBDHU4', 'WBDHU6', 'WBDHU8']:
+        delete_file(os.path.join(wbd_directory, temp_layer + '.gpkg'))
+    pulled_wbd_zipped_path = os.path.join(wbd_directory, 'WBD_National_GDB.zip')
+    delete_file(pulled_wbd_zipped_path)
+    delete_file(os.path.join(wbd_directory, 'WBD_National_GDB.jpg'))    
+#    delete_file(wbd_gdb_path)  # Commenting for now in case it should be used in validation.
+
     return(wbd_directory)
             
 
@@ -149,6 +151,7 @@ def pull_and_prepare_nhd_data(args):
     nhd_raster_extraction_path = args[1]
     nhd_vector_download_url = args[2]
     nhd_vector_extraction_path = args[3]
+    overwrite_nhd_data_flag = args[4]
     
     nhd_gdb = nhd_vector_extraction_path.replace('.zip', '.gdb')  # Update extraction path from .zip to .gdb. 
 
@@ -156,16 +159,15 @@ def pull_and_prepare_nhd_data(args):
     nhd_raster_extraction_parent = os.path.dirname(nhd_raster_extraction_path)
     if not os.path.exists(nhd_raster_extraction_parent):
         os.mkdir(nhd_raster_extraction_parent)
-        
-    if not os.path.exists(nhd_gdb):  # Only pull if not already pulled and processed.
+    
+    if not os.path.exists(nhd_raster_extraction_path) or overwrite_nhd_data_flag:
         pull_file(nhd_raster_download_url, nhd_raster_extraction_path)
-        pull_file(nhd_vector_download_url, nhd_vector_extraction_path)
         
-        # Unzip downloaded GDB.
+    if not os.path.exists(nhd_gdb) or overwrite_nhd_data_flag:  # Only pull if not already pulled and processed.
+        # Download and fully unzip downloaded GDB.
+        pull_file(nhd_vector_download_url, nhd_vector_extraction_path)
         nhd_vector_extraction_parent = os.path.dirname(nhd_vector_extraction_path)
         huc = os.path.split(nhd_vector_extraction_parent)[1]  # Parse HUC.
-        
-        # Unzip vector and delete zipped file.
         os.system("7za x {nhd_vector_extraction_path} -o{nhd_vector_extraction_parent}".format(nhd_vector_extraction_path=nhd_vector_extraction_path, nhd_vector_extraction_parent=nhd_vector_extraction_parent))
         delete_file(nhd_vector_extraction_path)  # Delete the zipped GDB.
         
@@ -236,7 +238,7 @@ def build_huc_list_files(path_to_saved_data_parent_dir, wbd_directory):
             f.write("%s\n" % item)
     
     
-def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir):
+def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir, overwrite_nhd_data_flag, overwrite_wbd_geopackages_flag):
     """
     This functions manages the downloading and preprocessing of gridded and vector data for FIM production.
     
@@ -282,7 +284,7 @@ def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_d
         nhd_vector_extraction_path = os.path.join(nhd_vector_download_parent, NHD_VECTOR_EXTRACTION_PREFIX + huc + NHD_VECTOR_EXTRACTION_SUFFIX)
 
         # Append extraction instructions to nhd_procs_list.
-        nhd_procs_list.append([nhd_raster_download_url, nhd_raster_extraction_path, nhd_vector_download_url, nhd_vector_extraction_path])
+        nhd_procs_list.append([nhd_raster_download_url, nhd_raster_extraction_path, nhd_vector_download_url, nhd_vector_extraction_path, overwrite_nhd_data_flag])
         
     # Pull and prepare NHD data.
     pool = Pool(3)
@@ -292,7 +294,7 @@ def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_d
 #    pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir)  # Commented out for now.
 
     # Pull and prepare WBD data.
-    wbd_directory = pull_and_prepare_wbd(path_to_saved_data_parent_dir)
+    wbd_directory = pull_and_prepare_wbd(path_to_saved_data_parent_dir, overwrite_wbd_geopackages_flag)
     
     # Create HUC list files.
     build_huc_list_files(path_to_saved_data_parent_dir, wbd_directory)
@@ -304,5 +306,25 @@ if __name__ == '__main__':
     hucs_of_interest_file_path = sys.argv[1]
     path_to_saved_data_parent_dir = sys.argv[2]  # The parent directory for all saved data.
     
-    manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir)
+    # Default flags to false.
+    overwrite_nhd_data_flag = False
+    overwrite_wbd_geopackages_flag = False
+    
+    # Parse arguments from user and determine if files need to be overwritten.
+    try: 
+        if sys.argv[3] == OVERWRITE_NHD: 
+            overwrite_nhd_data_flag = True
+        elif sys.argv[3] == OVERWRITE_WBD: 
+            overwrite_wbd_geopackages_flag = True
+        elif sys.argv[3] == OVERWRITE_ALL:
+            overwrite_nhd_data_flag, overwrite_wbd_geopackages_flag = True, True
+        else:
+            print()
+            print(Warning('Overwrite parameter not understood. Options are {OVERWRITE_NHD}, {OVERWRITE_WBD}, and {OVERWRITE_ALL}').format(OVERWRITE_NHD=OVERWRITE_NHD, OVERWRITE_WBD=OVERWRITE_WBD, OVERWRITE_ALL=OVERWRITE_ALL))
+            print()
+            sys.exit()
+    except IndexError:
+        pass
+    
+    manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir, overwrite_nhd_data_flag, overwrite_wbd_geopackages_flag)
             
