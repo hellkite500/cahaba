@@ -48,19 +48,18 @@ def pull_and_prepare_wbd(path_to_saved_data_parent_dir, overwrite_wbd_geopackage
     if not os.path.exists(wbd_directory):
         os.mkdir(wbd_directory)
     
-    # Download zipped WBD if not alread downloaded.
     wbd_gdb_path = os.path.join(wbd_directory, 'WBD_National_GDB.gdb')
     pulled_wbd_zipped_path = os.path.join(wbd_directory, 'WBD_National_GDB.zip')
-    if not os.path.exists(pulled_wbd_zipped_path) or overwrite_wbd_geopackages_flag:
-        pull_file(WBD_NATIONAL_URL, pulled_wbd_zipped_path)
-        
-    # Unzip WBD if not already unzipped.
-    if not os.path.exists(wbd_gdb_path):
-        os.system("7za x {pulled_wbd_zipped_path} -o{wbd_directory}".format(pulled_wbd_zipped_path=pulled_wbd_zipped_path, wbd_directory=wbd_directory))
             
     multilayer_wbd_geopackage = os.path.join(wbd_directory, 'WBD_National.gpkg')
     
     if not multilayer_wbd_geopackage or overwrite_wbd_geopackages_flag:
+        # Download WBD and unzip if it's not already done.
+        if not os.path.exists(wbd_gdb_path):
+            if not os.path.exists(pulled_wbd_zipped_path):
+                pull_file(WBD_NATIONAL_URL, pulled_wbd_zipped_path)
+            os.system("7za x {pulled_wbd_zipped_path} -o{wbd_directory}".format(pulled_wbd_zipped_path=pulled_wbd_zipped_path, wbd_directory=wbd_directory))
+        
         procs_list, wbd_gpkg_list = [], []
         # Add fossid to HU8, project, and convert to geopackage. Code block from Brian Avant.
         print("Adding fossid to HU8...")
@@ -92,7 +91,6 @@ def pull_and_prepare_wbd(path_to_saved_data_parent_dir, overwrite_wbd_geopackage
     pulled_wbd_zipped_path = os.path.join(wbd_directory, 'WBD_National_GDB.zip')
     delete_file(pulled_wbd_zipped_path)
     delete_file(os.path.join(wbd_directory, 'WBD_National_GDB.jpg'))    
-#    delete_file(wbd_gdb_path)  # Commenting for now in case it should be used in validation.
 
     return(wbd_directory)
             
