@@ -170,39 +170,36 @@ def pull_and_prepare_nhd_data(args):
     huc = nhd_raster_extraction_path.split('_')[3]
     nhd_raster_parent_dir = os.path.join(nhd_raster_extraction_parent, 'HRNHDPlusRasters' + huc)
     
-#    print("Deleting unneccessary raster files...")
-#    file_list = os.listdir(nhd_raster_parent_dir)
-#    for f in file_list:
-#        full_path = os.path.join(nhd_raster_parent_dir, f)
-#        if 'elev_cm' not in f:
-#            if os.path.isdir(full_path):
-#                shutil.rmtree(full_path)
-#            elif os.path.isfile(full_path):
-#                os.remove(full_path)
+    print("Deleting unneccessary raster files...")
+    file_list = os.listdir(nhd_raster_parent_dir)
+    for f in file_list:
+        full_path = os.path.join(nhd_raster_parent_dir, f)
+        if 'elev_cm' not in f:
+            if os.path.isdir(full_path):
+                shutil.rmtree(full_path)
+            elif os.path.isfile(full_path):
+                os.remove(full_path)
                 
     # Change projection for elev_cm.tif.
     print("Projecting elev_cm...")
     elev_cm_tif = os.path.join(nhd_raster_parent_dir, 'elev_cm.tif')
     elev_cm_proj_tif = os.path.join(nhd_raster_parent_dir, 'elev_cm_proj.tif')
-    
-    
-#    run_system_command(['gdal_edit.py -a_srs "{projection}" {elev_cm_tif} {elev_cm_proj_tif}'.format(projection=PREP_PROJECTION, elev_cm_tif=elev_cm_tif, elev_cm_proj_tif=elev_cm_proj_tif)])
-    
-#    run_system_command(['gdalwarp -s_srs "ESRI:102039" -t_srs "{projection}" {elev_cm_tif} {elev_cm_proj_tif}'.format(projection=PREP_PROJECTION, elev_cm_tif=elev_cm_tif, elev_cm_proj_tif=elev_cm_proj_tif)])
-    
+    print(os.path.exists(elev_cm_tif))
+    print('gdal_edit.py -a_srs "{projection}" {elev_cm_tif}'.format(projection=PREP_PROJECTION, elev_cm_tif=elev_cm_tif, elev_cm_proj_tif=elev_cm_proj_tif))
+    run_system_command(['gdal_edit.py -a_srs "{projection}" {elev_cm_tif}'.format(projection=PREP_PROJECTION, elev_cm_tif=elev_cm_tif, elev_cm_proj_tif=elev_cm_proj_tif)])
         
+    nhd_vector_extraction_parent = os.path.dirname(nhd_vector_extraction_path)
     if not os.path.exists(nhd_gdb) or overwrite_nhd_data_flag:  # Only pull if not already pulled and processed.
         # Download and fully unzip downloaded GDB.
         pull_file(nhd_vector_download_url, nhd_vector_extraction_path)
-        nhd_vector_extraction_parent = os.path.dirname(nhd_vector_extraction_path)
         huc = os.path.split(nhd_vector_extraction_parent)[1]  # Parse HUC.
         os.system("7za x {nhd_vector_extraction_path} -o{nhd_vector_extraction_parent}".format(nhd_vector_extraction_path=nhd_vector_extraction_path, nhd_vector_extraction_parent=nhd_vector_extraction_parent))
         
-        # -- Project and convert NHDPlusBurnLineEvent and NHDPlusFlowLineVAA vectors to geopackage -- #
-        for nhd_layer in ['NHDPlusBurnLineEvent', 'NHDPlusFlowlineVAA']:
-            output_gpkg = os.path.join(nhd_vector_extraction_parent, nhd_layer + huc + '.gpkg')
-            run_system_command(['ogr2ogr -overwrite -progress -f GPKG -t_srs "{projection}" {output_gpkg} {nhd_gdb} {nhd_layer}'.format(projection=PREP_PROJECTION, output_gpkg=output_gpkg, nhd_gdb=nhd_gdb, nhd_layer=nhd_layer)])  # Use list because function is configured for multiprocessing.
-    
+    # -- Project and convert NHDPlusBurnLineEvent and NHDPlusFlowLineVAA vectors to geopackage -- #
+    for nhd_layer in ['NHDPlusBurnLineEvent', 'NHDPlusFlowlineVAA']:
+        output_gpkg = os.path.join(nhd_vector_extraction_parent, nhd_layer + huc + '.gpkg')
+        run_system_command(['ogr2ogr -overwrite -progress -f GPKG -t_srs "{projection}" {output_gpkg} {nhd_gdb} {nhd_layer}'.format(projection=PREP_PROJECTION, output_gpkg=output_gpkg, nhd_gdb=nhd_gdb, nhd_layer=nhd_layer)])  # Use list because function is configured for multiprocessing.
+
     # Delete unnecessary files.
     delete_file(nhd_vector_extraction_path.replace('.zip', '.jpg'))
     delete_file(nhd_vector_extraction_path)  # Delete the zipped GDB.
