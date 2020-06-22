@@ -11,12 +11,14 @@ import shapely
 from shapely.geometry import shape
 from rasterio.mask import mask
 from rasterio.io import DatasetReader,DatasetWriter
-from rasterio.features import shapes,geometry_window
+from rasterio.features import shapes,geometry_window,dataset_features
+from rasterio.windows import transform
+from collections import OrderedDict
 import argparse
 import json
 
 
-def inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs,huc_level=6,
+def inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=None,hucs_layername=None,
              num_workers=4,inundation_raster=None,inundation_polygon=None,depths=None):
 
     # make a catchment,stages numba dictionary
@@ -39,10 +41,8 @@ def inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs,huc_level=6,
         raise TypeError("Pass rasterio dataset or filepath for catchments")
 
     # input hucs
-    huc_level = str(huc_level)
     if isinstance(hucs,str):
-        huc_layer = "WBDHU" + huc_level
-        hucs = fiona.open(hucs,layer=huc_layer)
+        hucs = fiona.open(hucs,layer=hucs_layername)
     elif isinstance(hucs,fiona.Collection):
         pass
     else:
@@ -60,7 +60,7 @@ def inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs,huc_level=6,
     if isinstance(depths,str): depths = rasterio.open(depths, "w", **depths_profile)
     if isinstance(inundation_raster,str): inundation_raster = rasterio.open(inundation_raster,"w",**inundation_profile)
     # find get polygon of aoi
-    colName = 'HUC' + str(huc_level)
+    colName = 'HUC6'
     for huc in hucs:
         if huc['properties'][colName] == '120903':
             aoi = shape(huc['geometry'])
@@ -69,11 +69,11 @@ def inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs,huc_level=6,
     # mask out rem and catchments to aoi
     rem_window = geometry_window(rem,aoi)
     catchments_window = geometry_window(catchments,aoi)
-    
+
     # load masks
     rem_mask = rem.read(1,window=rem_window)
     catchments_mask = catchments.read(1,window=catchments_window)
-    
+
     # save desired mask shape
     desired_shape = rem.shape
 
@@ -100,8 +100,35 @@ def inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs,huc_level=6,
 
     # polygonize inundation
     if isinstance(inundation_polygon,str):
-        inundation_polygon_json = shapes(inundation_raster,connectivity=8)
-    
+        
+        # make generator for inundation polygons
+        inundation_polygon_generator = shapes(inundation_mask,mask=inundation_mask>0,connectivity=8,transform=inundation_raster.transform)
+
+        # schema for polygons
+        inundation_polygon_schema = {
+                                      'geometry' : 'Polygon',
+                                      'properties' : OrderedDict([('HydroID' , 'int')])
+                                     }
+
+        # create file
+        inundation_polygon = fiona.open(inundation_polygon,'w',crs=inundation_raster.crs.wkt,
+                                        driver='GPKG',schema=inundation_polygon_schema)
+
+        
+        records = []
+        for i,(g,h) in enumerate(inundation_polygon_generator):
+            record = dict()
+            #record['id'] = i
+            record['geometry'] = g
+            record['properties'] = {'HydroID' : int(h)}
+            records += [record]
+
+        # write out
+        inundation_polygon.writerecords(records)
+
+        # close file
+        inundation_polygon.close()
+
     #executor.done()
     # close datasets
     rem.close()
@@ -194,10 +221,10 @@ if __name__ == '__main__':
     parser.add_argument('-c','--catchments',help='Catchments raster at job level or mosaic vrt',required=True)
     parser.add_argument('-f','--forecast',help='Forecast discharges in CMS as CSV file',required=True)
     parser.add_argument('-s','--rating-curve',help='SRC JSON file',required=True)
-    parser.add_argument('-w','--crosswalk',help='Cross-walk table csv',required=False,default=None)
-    parser.add_argument('-b','--hucs',help='WBD datasets with HUC 4,6,8 layers',required=True)
-    parser.add_argument('-l','--huc-level',help='HUC Level to inundate on',required=False,default=6)
-    parser.add_argument('-j','--workers',help='Number of workers to run',required=False,default=6)
+    parser.add_argument('-w','--crosswalk',help='Cross-walk table csv',required=True)
+    parser.add_argument('-b','--hucs',help='WBD datasets with HUC 4,6,8 layers',required=False)
+    parser.add_argument('-l','--hucs-layername',help='HUC Layername to inundate on',required=False,default=None)
+    parser.add_argument('-j','--workers',help='Number of workers to run',required=False,default=4,type=int)
     parser.add_argument('-i','--inundation-raster',help='Inundation Raster output',required=False,default=None)
     parser.add_argument('-p','--inundation-polygon',help='Inundation polygon output',required=False,default=None)
     parser.add_argument('-d','--depths',help='Depths raster output',required=False,default=None)
@@ -211,7 +238,7 @@ if __name__ == '__main__':
     inundate( 
               rem = args['rem'], catchments = args['catchments'], forecast = args['forecast'],
               rating_curve = args['rating_curve'], cross_walk = args['crosswalk'],
-              hucs = args['hucs'], huc_level = args['huc_level'],
+              hucs = args['hucs'], hucs_layername = args['hucs_layername'],
               num_workers = args['workers'], inundation_raster = args['inundation_raster'],
               inundation_polygon = args['inundation_polygon'], depths = args['depths'], 
             )
