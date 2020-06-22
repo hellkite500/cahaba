@@ -108,13 +108,11 @@ def pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir, path_to_prei
     nwm_hydrofabric_directory = os.path.join(path_to_saved_data_parent_dir, 'nwm_hydrofabric')
     if not os.path.exists(nwm_hydrofabric_directory):
         os.mkdir(nwm_hydrofabric_directory)
-#    pulled_hydrofabric_tar_gz_path = os.path.join(nwm_hydrofabric_directory, 'NWM_channel_hydrofabric.tar.gz')
+
+    nwm_hydrofabric_gdb = os.path.join(path_to_preinputs_dir, 'nwm_v20.gdb')  
+    nwm_working_dir = os.path.join(path_to_preinputs_dir, 'nwm_v21_working_files')
     
-#    nwm_hydrofabric_gdb = os.path.join(nwm_hydrofabric_directory, 'NWM_v2.0_channel_hydrofabric', 'nwm_v2_0_hydrofabric.gdb')
-    
-#    nwm_hydrofabric_gdb = r'\\nwcal-gis-fs1\Transfer\datasets\nwm_v20\nwm_v20.gdb'
-        
-    nwm_hydrofabric_gdb = os.path.join(path_to_preinputs_dir, 'nwm_v20.gdb')
+    # Find the nwm hydrofabric data and 
         
 #    print(os.path.exists(nwm_hydrofabric_gdb))
 
@@ -167,10 +165,11 @@ def pull_and_prepare_nhd_data(args):
         pull_file(nhd_raster_download_url, nhd_raster_extraction_path)
         os.system("7za x {nhd_raster_extraction_path} -o{nhd_raster_extraction_parent}".format(nhd_raster_extraction_path=nhd_raster_extraction_path, nhd_raster_extraction_parent=nhd_raster_extraction_parent))
     
-    huc = nhd_raster_extraction_path.split('_')[3]
+    huc = nhd_raster_extraction_path.split('_')[4]
     nhd_raster_parent_dir = os.path.join(nhd_raster_extraction_parent, 'HRNHDPlusRasters' + huc)
     
     print("Deleting unneccessary raster files...")
+    print(nhd_raster_parent_dir)
     file_list = os.listdir(nhd_raster_parent_dir)
     for f in file_list:
         full_path = os.path.join(nhd_raster_parent_dir, f)
