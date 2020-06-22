@@ -94,7 +94,7 @@ def pull_and_prepare_wbd(path_to_saved_data_parent_dir, overwrite_wbd_geopackage
     return(wbd_directory)
             
 
-def pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir):
+def pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir, path_to_preinputs_dir):
     """
     This helper function pulls and unzips NWM hydrofabric data. It uses the NWM hydrofabric URL defined by NWM_HYDROFABRIC_URL.
     
@@ -108,31 +108,39 @@ def pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir):
     nwm_hydrofabric_directory = os.path.join(path_to_saved_data_parent_dir, 'nwm_hydrofabric')
     if not os.path.exists(nwm_hydrofabric_directory):
         os.mkdir(nwm_hydrofabric_directory)
-    pulled_hydrofabric_tar_gz_path = os.path.join(nwm_hydrofabric_directory, 'NWM_channel_hydrofabric.tar.gz')
+#    pulled_hydrofabric_tar_gz_path = os.path.join(nwm_hydrofabric_directory, 'NWM_channel_hydrofabric.tar.gz')
     
-    nwm_hydrofabric_gdb = os.path.join(nwm_hydrofabric_directory, 'NWM_v2.0_channel_hydrofabric', 'nwm_v2_0_hydrofabric.gdb')
+#    nwm_hydrofabric_gdb = os.path.join(nwm_hydrofabric_directory, 'NWM_v2.0_channel_hydrofabric', 'nwm_v2_0_hydrofabric.gdb')
+    
+#    nwm_hydrofabric_gdb = r'\\nwcal-gis-fs1\Transfer\datasets\nwm_v20\nwm_v20.gdb'
+        
+    nwm_hydrofabric_gdb = os.path.join(path_to_preinputs_dir, 'nwm_v20.gdb')
+        
+#    print(os.path.exists(nwm_hydrofabric_gdb))
 
-    if not os.path.exists(nwm_hydrofabric_gdb):  # Only pull and unzip if the files don't already exist.
-        pull_file(NWM_HYDROFABRIC_URL, pulled_hydrofabric_tar_gz_path)
-        os.system("7za x {pulled_hydrofabric_tar_gz_path} -o{nwm_hydrofabric_directory}".format(pulled_hydrofabric_tar_gz_path=pulled_hydrofabric_tar_gz_path, nwm_hydrofabric_directory=nwm_hydrofabric_directory))
-        
-        pulled_hydrofabric_tar_path = pulled_hydrofabric_tar_gz_path.strip('.gz')
-        os.system("7za x {pulled_hydrofabric_tar_path} -o{nwm_hydrofabric_directory}".format(pulled_hydrofabric_tar_path=pulled_hydrofabric_tar_path, nwm_hydrofabric_directory=nwm_hydrofabric_directory))
-        
+#    if not os.path.exists(nwm_hydrofabric_gdb):  # Only pull and unzip if the files don't already exist.
+#        pull_file(NWM_HYDROFABRIC_URL, pulled_hydrofabric_tar_gz_path)
+#        os.system("7za x {pulled_hydrofabric_tar_gz_path} -o{nwm_hydrofabric_directory}".format(pulled_hydrofabric_tar_gz_path=pulled_hydrofabric_tar_gz_path, nwm_hydrofabric_directory=nwm_hydrofabric_directory))
+#        
+#        pulled_hydrofabric_tar_path = pulled_hydrofabric_tar_gz_path.strip('.gz')
+#        os.system("7za x {pulled_hydrofabric_tar_path} -o{nwm_hydrofabric_directory}".format(pulled_hydrofabric_tar_path=pulled_hydrofabric_tar_path, nwm_hydrofabric_directory=nwm_hydrofabric_directory))
+#        
         # Delete temporary zip files.
-        delete_file(pulled_hydrofabric_tar_gz_path)
-        delete_file(pulled_hydrofabric_tar_path)
+#        delete_file(pulled_hydrofabric_tar_gz_path)
+#        delete_file(pulled_hydrofabric_tar_path)
+#        
+    # Project and convert to geopackage.
+    print("Projecting and converting NWM layers to geopackage...")
+    procs_list = []
+    for nwm_layer in ['catchments_nwm_v20_conus_proj', 'channels_nwm_v20_conus', 'waterbodies_nwm_v20_conus_proj']:  # I had to project the catchments and waterbodies because these 3 layers had varying CRSs.
+        print("Operating on " + nwm_layer)
+        output_gpkg = os.path.join(nwm_hydrofabric_directory, nwm_layer + '.gpkg')
+#        run_system_command(['ogr2ogr -overwrite -progress -f GPKG -t_srs "{projection}" {output_gpkg} {nwm_hydrofabric_gdb} {nwm_layer}'.format(projection=PREP_PROJECTION, output_gpkg=output_gpkg, nwm_hydrofabric_gdb=nwm_hydrofabric_gdb, nwm_layer=nwm_layer)])
+        procs_list.append(['ogr2ogr -overwrite -progress -f GPKG -t_srs "{projection}" {output_gpkg} {nwm_hydrofabric_gdb} {nwm_layer}'.format(projection=PREP_PROJECTION, output_gpkg=output_gpkg, nwm_hydrofabric_gdb=nwm_hydrofabric_gdb, nwm_layer=nwm_layer)])        
         
-        # Project and convert to geopackage.
-        print("Projecting and converting NWM layers to geopackage...")
-        procs_list = []
-        for nwm_layer in ['nwm_reaches_conus', 'nwm_waterbodies_conus', 'nwm_catchments_conus']:
-            output_gpkg = os.path.join(nwm_hydrofabric_directory, nwm_layer + '.gpkg')
-            procs_list.append(['ogr2ogr -overwrite -progress -f GPKG -t_srs "{projection}" {output_gpkg} {nwm_hydrofabric_gdb} {nwm_layer}'.format(projection=PREP_PROJECTION, output_gpkg=output_gpkg, nwm_hydrofabric_gdb=nwm_hydrofabric_gdb, nwm_layer=nwm_layer)])        
-            
-        pool = Pool(4)
-        pool.map(run_system_command, procs_list)
-            
+    pool = Pool(3)
+    pool.map(run_system_command, procs_list)
+        
 
 def pull_and_prepare_nhd_data(args):
     """
@@ -175,7 +183,7 @@ def pull_and_prepare_nhd_data(args):
     # Change projection for elev_cm.tif.
     print("Projecting elev_cm...")
     elev_cm_tif = os.path.join(nhd_raster_parent_dir, 'elev_cm.tif')
-    run_system_command(['gdal_edit.py -a_srs "{projection}" {elev_cm_tif}'.format(projection=PREP_PROJECTION, elev_cm_tif=elev_cm_tif)])
+#    run_system_command(['gdal_edit.py -a_srs "{projection}" {elev_cm_tif}'.format(projection=PREP_PROJECTION, elev_cm_tif=elev_cm_tif)])
         
     if not os.path.exists(nhd_gdb) or overwrite_nhd_data_flag:  # Only pull if not already pulled and processed.
         # Download and fully unzip downloaded GDB.
@@ -252,7 +260,7 @@ def build_huc_list_files(path_to_saved_data_parent_dir, wbd_directory):
             f.write("%s\n" % item)
     
     
-def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir, overwrite_nhd_data_flag, overwrite_wbd_geopackages_flag):
+def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir, path_to_preinputs_dir, overwrite_nhd_data_flag, overwrite_wbd_geopackages_flag):
     """
     This functions manages the downloading and preprocessing of gridded and vector data for FIM production.
     
@@ -305,7 +313,7 @@ def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_d
     pool.map(pull_and_prepare_nhd_data, nhd_procs_list)
     
     # Pull and prepare NWM data.
-#    pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir)  # Commented out for now.
+    pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir, path_to_preinputs_dir)
 
     # Pull and prepare WBD data.
     wbd_directory = pull_and_prepare_wbd(path_to_saved_data_parent_dir, overwrite_wbd_geopackages_flag)
@@ -319,6 +327,7 @@ if __name__ == '__main__':
     # Get input arguments from command line.
     hucs_of_interest_file_path = sys.argv[1]
     path_to_saved_data_parent_dir = sys.argv[2]  # The parent directory for all saved data.
+    path_to_preinputs_dir = sys.argv[3]
     
     # Default flags to false.
     overwrite_nhd_data_flag = False
@@ -326,11 +335,11 @@ if __name__ == '__main__':
     
     # Parse arguments from user and determine if files need to be overwritten.
     try: 
-        if sys.argv[3] == OVERWRITE_NHD: 
+        if sys.argv[4] == OVERWRITE_NHD: 
             overwrite_nhd_data_flag = True
-        elif sys.argv[3] == OVERWRITE_WBD: 
+        elif sys.argv[4] == OVERWRITE_WBD: 
             overwrite_wbd_geopackages_flag = True
-        elif sys.argv[3] == OVERWRITE_ALL:
+        elif sys.argv[4] == OVERWRITE_ALL:
             overwrite_nhd_data_flag, overwrite_wbd_geopackages_flag = True, True
         else:
             print()
@@ -340,5 +349,5 @@ if __name__ == '__main__':
     except IndexError:
         pass
     
-    manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir, overwrite_nhd_data_flag, overwrite_wbd_geopackages_flag)
+    manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_dir, path_to_preinputs_dir, overwrite_nhd_data_flag, overwrite_wbd_geopackages_flag)
             
