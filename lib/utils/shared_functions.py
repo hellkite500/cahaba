@@ -35,6 +35,7 @@ def delete_file(file_path):
     except FileNotFoundError:
         pass
     
+    
 def run_system_command(args):
     """
     This helper function takes a system command and runs it. This function is designed for use

@@ -170,20 +170,26 @@ def pull_and_prepare_nhd_data(args):
     huc = nhd_raster_extraction_path.split('_')[3]
     nhd_raster_parent_dir = os.path.join(nhd_raster_extraction_parent, 'HRNHDPlusRasters' + huc)
     
-    print("Deleting unneccessary raster files...")
-    file_list = os.listdir(nhd_raster_parent_dir)
-    for f in file_list:
-        full_path = os.path.join(nhd_raster_parent_dir, f)
-        if 'elev_cm' not in f:
-            if os.path.isdir(full_path):
-                shutil.rmtree(full_path)
-            elif os.path.isfile(full_path):
-                os.remove(full_path)
+#    print("Deleting unneccessary raster files...")
+#    file_list = os.listdir(nhd_raster_parent_dir)
+#    for f in file_list:
+#        full_path = os.path.join(nhd_raster_parent_dir, f)
+#        if 'elev_cm' not in f:
+#            if os.path.isdir(full_path):
+#                shutil.rmtree(full_path)
+#            elif os.path.isfile(full_path):
+#                os.remove(full_path)
                 
     # Change projection for elev_cm.tif.
     print("Projecting elev_cm...")
     elev_cm_tif = os.path.join(nhd_raster_parent_dir, 'elev_cm.tif')
-#    run_system_command(['gdal_edit.py -a_srs "{projection}" {elev_cm_tif}'.format(projection=PREP_PROJECTION, elev_cm_tif=elev_cm_tif)])
+    elev_cm_proj_tif = os.path.join(nhd_raster_parent_dir, 'elev_cm_proj.tif')
+    
+    
+#    run_system_command(['gdal_edit.py -a_srs "{projection}" {elev_cm_tif} {elev_cm_proj_tif}'.format(projection=PREP_PROJECTION, elev_cm_tif=elev_cm_tif, elev_cm_proj_tif=elev_cm_proj_tif)])
+    
+#    run_system_command(['gdalwarp -s_srs "ESRI:102039" -t_srs "{projection}" {elev_cm_tif} {elev_cm_proj_tif}'.format(projection=PREP_PROJECTION, elev_cm_tif=elev_cm_tif, elev_cm_proj_tif=elev_cm_proj_tif)])
+    
         
     if not os.path.exists(nhd_gdb) or overwrite_nhd_data_flag:  # Only pull if not already pulled and processed.
         # Download and fully unzip downloaded GDB.
@@ -313,7 +319,7 @@ def manage_preprocessing(hucs_of_interest_file_path, path_to_saved_data_parent_d
     pool.map(pull_and_prepare_nhd_data, nhd_procs_list)
     
     # Pull and prepare NWM data.
-    pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir, path_to_preinputs_dir)
+#    pull_and_prepare_nwm_hydrofabric(path_to_saved_data_parent_dir, path_to_preinputs_dir)
 
     # Pull and prepare WBD data.
     wbd_directory = pull_and_prepare_wbd(path_to_saved_data_parent_dir, overwrite_wbd_geopackages_flag)
