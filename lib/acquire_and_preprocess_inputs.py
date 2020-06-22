@@ -165,7 +165,7 @@ def pull_and_prepare_nhd_data(args):
         pull_file(nhd_raster_download_url, nhd_raster_extraction_path)
         os.system("7za x {nhd_raster_extraction_path} -o{nhd_raster_extraction_parent}".format(nhd_raster_extraction_path=nhd_raster_extraction_path, nhd_raster_extraction_parent=nhd_raster_extraction_parent))
     
-    huc = nhd_raster_extraction_path.split('_')[4]
+    huc = nhd_raster_extraction_path.split('_')[3]
     nhd_raster_parent_dir = os.path.join(nhd_raster_extraction_parent, 'HRNHDPlusRasters' + huc)
     
     print("Deleting unneccessary raster files...")
