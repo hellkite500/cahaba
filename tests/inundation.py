@@ -19,7 +19,7 @@ import json
 
 
 def inundate(rem,catchments,forecast,rating_curve,cross_walk,aoi=None,
-             num_workers=4,inundation_raster=None,inundation_polygon=None,depths=None,
+             inundation_raster=None,inundation_polygon=None,depths=None,
              out_raster_profile=None,out_vector_profile=None):
 
     # make a catchment,stages numba dictionary
@@ -249,7 +249,6 @@ if __name__ == '__main__':
     parser.add_argument('-f','--forecast',help='Forecast discharges in CMS as CSV file',required=True)
     parser.add_argument('-s','--rating-curve',help='SRC JSON file',required=True)
     parser.add_argument('-w','--crosswalk',help='Cross-walk table csv',required=True)
-    parser.add_argument('-j','--workers',help='Number of workers to run',required=False,default=4,type=int)
     parser.add_argument('-i','--inundation-raster',help='Inundation Raster output',required=False,default=None)
     parser.add_argument('-p','--inundation-polygon',help='Inundation polygon output',required=False,default=None)
     parser.add_argument('-d','--depths',help='Depths raster output',required=False,default=None)
@@ -257,16 +256,11 @@ if __name__ == '__main__':
     # extract to dictionary
     args = vars(parser.parse_args())
     
-    #inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs,huc_level=6,
-    #         num_workers=4,inundation_raster=None,inundation_polygon=None,depths=None):
     # call function
     inundate( 
               rem = args['rem'], catchments = args['catchments'], forecast = args['forecast'],
               rating_curve = args['rating_curve'], cross_walk = args['crosswalk'],
-              num_workers = args['workers'], inundation_raster = args['inundation_raster'],
-              inundation_polygon = args['inundation_polygon'], depths = args['depths'], 
+              inundation_raster = args['inundation_raster'],
+              inundation_polygon = args['inundation_polygon'], depths = args['depths']
             )
 
-    """
-    inundation_array_read.py -r ~/data/
-    """
