@@ -84,10 +84,10 @@ logFile=$outputRunDataDir/logs/summary.log
 
 ## Define inputs
 export input_WBD_gdb=$inputDataDir/wbd/WBD_National.gpkg
-export input_NWM_Headwaters=$inputDataDir/nwm_hydrofabric/nwm_headwaters_proj.gpkg
-export input_NWM_Lakes=$inputDataDir/nwm_hydrofabric/nwm_lakes_proj.gpkg
-export input_NWM_Catchments=$inputDataDir/nwm_hydrofabric/nwm_catchments_proj.gpkg
-export input_NWM_Flows=$inputDataDir/nwm_hydrofabric/nwm_flows_proj.gpkg
+export input_NWM_Headwaters=$inputDataDir/nwm_hydrofabric/old_files/nwm_headwaters_proj.gpkg
+export input_NWM_Lakes=$inputDataDir/nwm_hydrofabric/old_files/nwm_lakes_proj.gpkg
+export input_NWM_Catchments=$inputDataDir/nwm_hydrofabric/old_files/nwm_catchments_proj.gpkg
+export input_NWM_Flows=$inputDataDir/nwm_hydrofabric/old_files/nwm_flows_proj.gpkg
 
 ## Make output and data directories ##
 if [ -d "$outputRunDataDir" ] && [  "$overwrite" -eq 1 ]; then 
