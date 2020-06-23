@@ -12,14 +12,15 @@ from shapely.geometry import shape
 from rasterio.mask import mask
 from rasterio.io import DatasetReader,DatasetWriter
 from rasterio.features import shapes,geometry_window,dataset_features
-from rasterio.windows import transform
+from rasterio.windows import transform,Window
 from collections import OrderedDict
 import argparse
 import json
 
 
-def inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=None,hucs_layername=None,
-             num_workers=4,inundation_raster=None,inundation_polygon=None,depths=None):
+def inundate(rem,catchments,forecast,rating_curve,cross_walk,aoi=None,
+             num_workers=4,inundation_raster=None,inundation_polygon=None,depths=None,
+             out_raster_profile=None,out_vector_profile=None):
 
     # make a catchment,stages numba dictionary
     catchmentStagesDict = __make_catchment_stages_dictionary(forecast,rating_curve,cross_walk)
@@ -40,85 +41,112 @@ def inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=None,hucs_laye
     else:
         raise TypeError("Pass rasterio dataset or filepath for catchments")
 
-    # input hucs
-    if isinstance(hucs,str):
-        hucs = fiona.open(hucs,layer=hucs_layername)
-    elif isinstance(hucs,fiona.Collection):
-        pass
-    else:
-        raise TypeError("Pass fiona collection or filepath for hucs")
-
     # save desired profiles for outputs
     depths_profile = rem.profile
     inundation_profile = catchments.profile
 
     # update output profiles
-    depths_profile.update(driver= 'GTiff', blockxsize=256, blockysize=256, tiled=True, compress='lzw')
-    inundation_profile.update(driver= 'GTiff',blockxsize=256, blockysize=256, tiled=True, compress='lzw')
+    if isinstance(out_raster_profile,dict):
+        depths_profile.update(**out_raster_profile)
+        inundation_profile.update(**out_raster_profile)
+    elif out_raster_profile is None:
+        depths_profile.update(driver= 'GTiff', blockxsize=256, blockysize=256, tiled=True, compress='lzw')
+        inundation_profile.update(driver= 'GTiff',blockxsize=256, blockysize=256, tiled=True, compress='lzw')
+    else:
+        raise TypeError("Pass dictionary for output raster profiles")
 
-    # open outputs
-    if isinstance(depths,str): depths = rasterio.open(depths, "w", **depths_profile)
-    if isinstance(inundation_raster,str): inundation_raster = rasterio.open(inundation_raster,"w",**inundation_profile)
+    # open output depths
+    if isinstance(depths,str): 
+        depths = rasterio.open(depths, "w", **depths_profile)
+    elif isinstance(depths,DatasetWriter):
+        pass
+    elif depths is None:
+        pass
+    else:
+        raise TypeError("Pass rasterio dataset, filepath for output depths, or None.")
+    
+    # open output inundation
+    if isinstance(inundation_raster,str): 
+        inundation_raster = rasterio.open(inundation_raster,"w",**inundation_profile)
+    elif isinstance(inundation_raster,DatasetWriter):
+        pass
+    elif inundation_raster is None:
+        pass
+    else:
+        raise TypeError("Pass rasterio dataset, filepath for output inundation raster, or None.")
+
+    """
     # find get polygon of aoi
-    colName = 'HUC6'
-    for huc in hucs:
-        if huc['properties'][colName] == '120903':
+    with fiona.open('','r') as hucs:
+        for huc in hucs:
             aoi = shape(huc['geometry'])
-            break 
+    """
 
-    # mask out rem and catchments to aoi
-    rem_window = geometry_window(rem,aoi)
-    catchments_window = geometry_window(catchments,aoi)
-
-    # load masks
-    rem_mask = rem.read(1,window=rem_window)
-    catchments_mask = catchments.read(1,window=catchments_window)
-
-    # save desired mask shape
+    # make windows
+    if aoi is None:
+        rem_window = Window(col_off=0,row_off=0,width=rem.width,height=rem.height)
+        catchments_window = Window(col_off=0,row_off=0,width=catchments.width,height=catchments.height)
+    elif isinstance(aoi,shape):
+        rem_window = geometry_window(rem,aoi)
+        catchments_window = geometry_window(catchments,aoi)
+    else:
+        raise TypeError("Pass rasterio shape geometry object or None")
+    
+    # load arrays
+    rem_array = rem.read(1,window=rem_window)
+    catchments_array = catchments.read(1,window=catchments_window)
+    
+    # save desired array shape
     desired_shape = rem.shape
 
     # flatten
-    rem_mask = rem_mask.ravel()
-    catchments_mask = catchments_mask.ravel()
+    rem_array = rem_array.ravel()
+    catchments_array = catchments_array.ravel()
 
     # create flat outputs
-    depths_mask = rem_mask.copy()
-    inundation_mask = catchments_mask.copy()
+    depths_array = rem_array.copy()
+    inundation_array = catchments_array.copy()
 
     # reset output values
-    depths_mask[depths_mask != depths_profile['nodata']] = 0
-    inundation_mask[inundation_mask != inundation_profile['nodata']] = -1
+    depths_array[depths_array != depths_profile['nodata']] = 0
+    inundation_array[inundation_array != inundation_profile['nodata']] = -1
 
-    inundation_mask,depths_mask = __go_fast_inundation(rem_mask,catchments_mask,catchmentStagesDict,inundation_mask,depths_mask)
+    # make output arrays
+    inundation_array,depths_array = __go_fast_inundation(rem_array,catchments_array,catchmentStagesDict,inundation_array,depths_array)
 
-    inundation_mask = inundation_mask.reshape(desired_shape)
-    depths_mask = depths_mask.reshape(desired_shape)
+    # reshape output arrays
+    inundation_array = inundation_array.reshape(desired_shape)
+    depths_array = depths_array.reshape(desired_shape)
     
-    # write out inundation rasters
-    if isinstance(inundation_raster,DatasetWriter): inundation_raster.write(inundation_mask,indexes=1,window=catchments_window)
-    if isinstance(depths,DatasetWriter): depths.write(depths_mask,indexes=1,window=rem_window)
+    # write out inundation and depth rasters
+    if isinstance(inundation_raster,DatasetWriter):
+        inundation_raster.write(inundation_array,indexes=1,window=catchments_window)
+    if isinstance(depths,DatasetWriter):
+        depths.write(depths_array,indexes=1,window=rem_window)
 
     # polygonize inundation
     if isinstance(inundation_polygon,str):
         
-        # make generator for inundation polygons
-        inundation_polygon_generator = shapes(inundation_mask,mask=inundation_mask>0,connectivity=8,transform=inundation_raster.transform)
+        # set output vector profile
+        if out_vector_profile is None:
+            out_vector_profile = {'crs' : rem.crs.wkt , 'driver' : 'GPKG'}
 
         # schema for polygons
-        inundation_polygon_schema = {
-                                      'geometry' : 'Polygon',
-                                      'properties' : OrderedDict([('HydroID' , 'int')])
-                                     }
+        out_vector_profile['schema'] = {
+                                        'geometry' : 'Polygon',
+                                        'properties' : OrderedDict([('HydroID' , 'int')])
+                                       }
 
         # create file
-        inundation_polygon = fiona.open(inundation_polygon,'w',crs=inundation_raster.crs.wkt,
-                                        driver='GPKG',schema=inundation_polygon_schema)
+        inundation_polygon = fiona.open(inundation_polygon,'w',**out_vector_profile)
 
+        # make generator for inundation polygons
+        inundation_polygon_generator = shapes(inundation_array,mask=inundation_array>0,connectivity=8,transform=rem.transform)
         
+        # generate records
         records = []
         for i,(g,h) in enumerate(inundation_polygon_generator):
             record = dict()
-            #record['id'] = i
             record['geometry'] = g
             record['properties'] = {'HydroID' : int(h)}
             records += [record]
@@ -133,7 +161,6 @@ def inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=None,hucs_laye
     # close datasets
     rem.close()
     catchments.close()
-    hucs.close() 
     if isinstance(depths,DatasetWriter): depths.close()
     if isinstance(inundation_raster,DatasetWriter): inundation_raster.close()
 
@@ -222,13 +249,11 @@ if __name__ == '__main__':
     parser.add_argument('-f','--forecast',help='Forecast discharges in CMS as CSV file',required=True)
     parser.add_argument('-s','--rating-curve',help='SRC JSON file',required=True)
     parser.add_argument('-w','--crosswalk',help='Cross-walk table csv',required=True)
-    parser.add_argument('-b','--hucs',help='WBD datasets with HUC 4,6,8 layers',required=False)
-    parser.add_argument('-l','--hucs-layername',help='HUC Layername to inundate on',required=False,default=None)
     parser.add_argument('-j','--workers',help='Number of workers to run',required=False,default=4,type=int)
     parser.add_argument('-i','--inundation-raster',help='Inundation Raster output',required=False,default=None)
     parser.add_argument('-p','--inundation-polygon',help='Inundation polygon output',required=False,default=None)
     parser.add_argument('-d','--depths',help='Depths raster output',required=False,default=None)
-
+    
     # extract to dictionary
     args = vars(parser.parse_args())
     
@@ -238,11 +263,10 @@ if __name__ == '__main__':
     inundate( 
               rem = args['rem'], catchments = args['catchments'], forecast = args['forecast'],
               rating_curve = args['rating_curve'], cross_walk = args['crosswalk'],
-              hucs = args['hucs'], hucs_layername = args['hucs_layername'],
               num_workers = args['workers'], inundation_raster = args['inundation_raster'],
               inundation_polygon = args['inundation_polygon'], depths = args['depths'], 
             )
 
     """
-    inundation_mask_read.py -r ~/data/
+    inundation_array_read.py -r ~/data/
     """
