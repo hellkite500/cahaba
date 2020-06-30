@@ -2,17 +2,14 @@
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-from numba import njit, typeof, typed, types
+from numba import njit, typed, types
 #import concurrent.features 
 import rasterio
 import fiona
-import shapely
 from shapely.geometry import shape
-from rasterio.mask import mask
 from rasterio.io import DatasetReader,DatasetWriter
-from rasterio.features import shapes,geometry_window,dataset_features
-from rasterio.windows import transform,Window
+from rasterio.features import shapes,geometry_window
+from rasterio.windows import Window
 from collections import OrderedDict
 import argparse
 import json
