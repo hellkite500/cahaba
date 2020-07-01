@@ -1,7 +1,35 @@
 #!/usr/bin/env python3
 
+import os
 
 
+def profile_test_case_archive(archive_to_check):
+    
+    archive_dictionary = {}
+    
+    # List through previous version and check for available stats and maps. If available, add to dictionary.
+    available_versions_list = os.listdir(archive_to_check)
+    for version in available_versions_list:
+        version_dir = os.path.join(archive_to_check, version)
+        # Initialize dictionary for version and set paths to None by default.
+        archive_dictionary.update({version: {'agreement_raster': None,
+                                             'stats_csv': None,
+                                             'stats_json': None}})
+        # Find stats files and raster files and add to dictionary.
+        agreement_raster = os.path.join(version_dir, 'agreement.tif')
+        stats_csv = os.path.join(version_dir, 'stats.csv')
+        stats_json = os.path.join(version_dir, 'stats.json')
+        
+        if os.path.exists(agreement_raster):
+            archive_dictionary[version]['agreement_raster'] = agreement_raster
+        if os.path.exists(stats_csv):
+            archive_dictionary[version]['stats_csv'] = stats_csv
+        if os.path.exists(stats_json):
+            archive_dictionary[version]['stats_json'] = stats_json
+        
+    return archive_dictionary
+    
+    
 def compute_stats_from_contingency_table(true_negatives, false_negatives, false_positives, true_positives, cell_area=None):
     
     import numpy as np
@@ -24,7 +52,6 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     FP_perc = (false_positives / total_population) * 100
     TN_perc = (true_negatives / total_population) * 100
     FN_perc = (false_negatives / total_population) * 100
-        
     
     predPositive = true_positives + false_positives
     predNegative = true_negatives + false_negatives

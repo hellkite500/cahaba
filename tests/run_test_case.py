@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 
-import argparse
 from pprint import pprint
 
-from utils.shared_functions import get_contingency_table_from_binary_rasters, compute_stats_from_contingency_table
+from utils.shared_functions import get_contingency_table_from_binary_rasters, compute_stats_from_contingency_table, profile_test_case_archive
 
 #from inundation import inundate
 
 import rasterio
+import json
 
-
-def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster=None, stats_csv=None):
+def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster=None, stats_csv=None, stats_json=None):
     
     # Get cell size of benchmark raster.
     raster = rasterio.open(benchmark_raster_path)
@@ -26,48 +25,74 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
     
     # Produce statistics from continency table and assign to dictionary. cell_area argument optional (defaults to None). 
     stats_dictionary = compute_stats_from_contingency_table(true_negatives, false_negatives, false_positives, true_positives, cell_area)
-    pprint(stats_dictionary)
 
+    # Write the stats_dictionary to the stats_csv.
     if stats_csv != None:
-        pass
-        # Write the stats_dictionary to the stats_csv.
+        import pandas as pd
+        df = pd.DataFrame.from_dict(stats_dictionary, orient="index", columns=['value'])
+        df.to_csv(stats_csv)
+        
+    if stats_json != None:
+        with open(stats_json, "w") as outfile:  
+            json.dump(stats_dictionary, outfile) 
+    
+    return stats_dictionary
     
 
-def check_for_regression(stats_csv_to_test, previous_version, previous_version_stats_csv_path, regression_test_csv):
-    print(stats_csv_to_test, previous_version, previous_version_stats_csv_path)
+def check_for_regression(stats_csv_to_test, previous_version, previous_version_stats_json_path, regression_test_csv=None):
+    print(stats_csv_to_test, previous_version, previous_version_stats_json_path)
 
     # Compare stats_csv to previous_version_stats_file
 
 
 if __name__ == '__main__':
         
-    # Parse arguments. Still evolving with reconciliation with inundation.py.
-    parser = argparse.ArgumentParser(description='Provide three inundation files to output binary contigency stats. Need to have same spatial extents, projections, and resolutions.')
-    parser.add_argument('-p','--predicted', help='Predicted inundation raster filepath', required=True)
-    parser.add_argument('-w','--watersheds', help='HUC8 or HUC8s. If multiple, put in quotes and separate with comma', required=True)
-    parser.add_argument('-b','--benchmark', help='Benchmark inundation raster filepath', required=True)
-    # parser.add_argument('-e','--exclusion-mask',help='Set an exclusion mask to exclude from analysis inside analysis extents',required=False,default=None)
-    parser.add_argument('-a','--agreement_raster',help='Filepath where the agreement raster will be saved',required=False,default=None)
-    parser.add_argument('-s','--stats',help='Filepath where the contingeny metrics and statistics CSV be saved',required=False,default=None)
-    parser.add_argument('-q','--quiet',help='Quiet output',required=False,action='store_false')
+    # These will be passed from inundate.
+#    rem = ''
+#    catchments = ''
+#    forecast = ''
+#    rating_curve = ''
+#    cross_walk = ''
+    inundation_raster = r"C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\ble_huc_12090301_100yr\ble_huc_12090301_inundation_extent_100yr.tif"
+#    inundation_polygon = ''
+#    depths = ''
+#    
+#    # Run inundate.
+#    inundate(rem, catchments, forecast, rating_curve, cross_walk, inundation_raster, inundation_polygon, depths)
+#    
+    
+    
+    
+    predicted_raster_path = inundation_raster
+    benchmark_raster_path = r"C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\ble_huc_12090301_500yr\ble_huc_12090301_inundation_extent_500yr.tif"
+    agreement_raster = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\testing2\agreement3.tif'
+    stats_json = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\testing2\stats3.json'
+    stats_csv = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\testing2\stats3.csv'
+#    stats_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster, stats_csv=stats_csv, stats_json=stats_json)
+    
+    # Compare to previous stats files that are available.    
+    archive_to_check = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\archive\12090301\ble_archive'
+    archive_dictionary = profile_test_case_archive(archive_to_check) # Would be generated from user-provided stats files (directory?).
 
-    # Extract arguments to dictionary and assign to dictionary.
-    args_dictionary = vars(parser.parse_args())
-    predicted_raster_path = args_dictionary['predicted']
-    benchmark_raster_path = args_dictionary['benchmark']
-    huc8s_to_evaluate = args_dictionary['watersheds'].replace(' ', '').split(',')
-    agreement_raster = args_dictionary['agreement_raster']
-    stats_csv = args_dictionary['stats']
+    for previous_version, paths in archive_dictionary.items():
+        previous_version_stats_json_path = paths['stats_json']
+        results = check_for_regression(stats_json, previous_version, previous_version_stats_json_path)
         
-#    compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster, stats_csv)
-    
-    # Compare to previous stats files that are available.
-    regression_test_csv = ""
-    dict_of_previous_version_stats_csvs = {'version1': 'version1\path',
-                                           'version2': 'version2\path',
-                                           'version2': 'version2\path'}  # Would be generated from user-provided stats files (directory?).
-    
-    for previous_version, previous_version_stats_csv_path in dict_of_previous_version_stats_csvs.items():
-        check_for_regression(stats_csv, previous_version, previous_version_stats_csv_path, regression_test_csv)
-   
-    
+        # Append results
+        
+    # Write test results.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
