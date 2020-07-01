@@ -1,15 +1,44 @@
 #!/usr/bin/env python3
 
+import os
 import pandas as pd
 import rasterio
 import json
 from pprint import pprint
-from collections import Counter
+import csv
 
-from utils.shared_functions import get_contingency_table_from_binary_rasters, compute_stats_from_contingency_table, profile_test_case_archive
+from utils.shared_functions import get_contingency_table_from_binary_rasters, compute_stats_from_contingency_table
 
+
+TEST_CASES_DIR = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases'  # Will update.
 #from inundation import inundate
 
+
+def profile_test_case_archive(archive_to_check, return_interval):
+    
+    archive_dictionary = {}
+    
+    # List through previous version and check for available stats and maps. If available, add to dictionary.
+    available_versions_list = os.listdir(archive_to_check)
+    for version in available_versions_list:
+        version_return_interval_dir = os.path.join(archive_to_check, version, return_interval)
+        # Initialize dictionary for version and set paths to None by default.
+        archive_dictionary.update({version: {'agreement_raster': None,
+                                             'stats_csv': None,
+                                             'stats_json': None}})
+        # Find stats files and raster files and add to dictionary.
+        agreement_raster = os.path.join(version_return_interval_dir, 'agreement.tif')
+        stats_csv = os.path.join(version_return_interval_dir, 'stats.csv')
+        stats_json = os.path.join(version_return_interval_dir, 'stats.json')
+        
+        if os.path.exists(agreement_raster):
+            archive_dictionary[version]['agreement_raster'] = agreement_raster
+        if os.path.exists(stats_csv):
+            archive_dictionary[version]['stats_csv'] = stats_csv
+        if os.path.exists(stats_json):
+            archive_dictionary[version]['stats_json'] = stats_json
+        
+    return archive_dictionary
 
 
 def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster=None, stats_csv=None, stats_json=None):
@@ -73,19 +102,27 @@ if __name__ == '__main__':
 #    # Run inundate.
 #    inundate(rem, catchments, forecast, rating_curve, cross_walk, inundation_raster, inundation_polygon, depths)
 #    
+    branch = 'ffd-example'
+    benchmark_category = 'ble'
+    huc = '12090301'
+    return_interval = '100yr'
     
+    branch_test_case_dir = os.path.join(TEST_CASES_DIR, huc, benchmark_category, 'performance_archive', 'development_versions', branch)
+    if not os.path.exists(branch_test_case_dir):
+        os.makedirs(branch_test_case_dir)
     
+    # Construct paths to development test results if not existent.
     
     predicted_raster_path = inundation_raster
     benchmark_raster_path = r"C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\ble_huc_12090301_500yr\ble_huc_12090301_inundation_extent_500yr.tif"
     agreement_raster = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\testing2\agreement3.tif'
-    stats_json = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\testing2\stats3.json'
-    stats_csv = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\testing2\stats3.csv'
-#    stats_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster, stats_csv=stats_csv, stats_json=stats_json)
+    stats_json = os.path.join(branch_test_case_dir, 'stats.json')
+    stats_csv = os.path.join(branch_test_case_dir, 'stats.csv')
+    stats_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster, stats_csv=stats_csv, stats_json=stats_json)
     
     # Compare to previous stats files that are available.    
-    archive_to_check = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\archive\12090301\ble_archive'
-    archive_dictionary = profile_test_case_archive(archive_to_check)
+    archive_to_check = os.path.join(TEST_CASES_DIR, huc, benchmark_category, 'performance_archive', 'previous_versions')
+    archive_dictionary = profile_test_case_archive(archive_to_check, return_interval)
 
     regression_dict = {}
     for previous_version, paths in archive_dictionary.items():
@@ -96,14 +133,26 @@ if __name__ == '__main__':
         # Append results
         regression_dict.update({previous_version: difference_dict})
         
+    # Parse values from dictionary from writing. Not the most Pythonic, but works fast.
+    version_list = list(regression_dict.keys())
+    stat_names_list = list(regression_dict[version_list[0]].keys())
+    lines = []
+    for stat in stat_names_list:
+        stat_line = []
+        for version in version_list:
+            stat_line.append(regression_dict[version][stat])
+        stat_line.insert(0, stat)
+        lines.append(stat_line)
+    header = version_list.insert(0, " ")
+    
     # Write test results.
-    pprint(regression_dict)
+    regression_report_csv = os.path.join(branch_test_case_dir, 'regression_report.csv')
+    with open(regression_report_csv, 'w', newline='') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(version_list)
+        csv_writer.writerows(lines)
+        
     
-    
-
-
-
-
 
 
 
