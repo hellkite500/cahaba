@@ -1,9 +1,26 @@
 #!/usr/bin/env python3
 
-import os
 
     
 def compute_stats_from_contingency_table(true_negatives, false_negatives, false_positives, true_positives, cell_area=None):
+    """
+    This generic function takes contingency table metrics as arguments and returns a dictionary of contingency table statistics.
+    Much of the calculations below were taken from older Python files. This is evident in the inconsistent use of case.
+    
+    Args:
+        true_negatives (int): The true negatives from a contingency table.
+        false_negatives (int): The false negatives from a contingency table.
+        false_positives (int): The false positives from a contingency table.
+        true_positives (int): The true positives from a contingency table.
+        cell_area (float or None): This optional argument allows for area-based statistics to be calculated, in the case that
+                                   contingency table metrics were derived from areal analysis.
+    
+    Returns:
+        stats_dictionary (dict): A dictionary of statistics. Statistic names are keys and statistic values are the values.
+                                 Refer to dictionary definition in bottom of function for statistic names.
+    
+    """
+    
     
     import numpy as np
     
@@ -117,11 +134,19 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
 
 def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster=None):
     """
-    Produces contingency table from 2 rasters and returns it. Also exports an agreement raster classified as:  TODO Change to...
+    Produces contingency table from 2 rasters and returns it. Also exports an agreement raster classified as:
         0: True Negatives
         1: False Negative
         2: False Positive
         3: True Positive
+        
+    Args:
+        benchmark_raster_path (str): Path to the binary benchmark raster. 0 = phenomena not present, 1 = phenomena present, NoData = NoData.
+        predicted_raster_path (str): Path to the predicted raster. 0 = phenomena not present, 1 = phenomena present, NoData = NoData.
+    
+    Returns:
+        contingency_table_dictionary (dict): A Python dictionary of a contingency table. Key/value pair formatted as:
+                                            {true_negatives: int, false_negatives: int, false_positives: int, true_positives: int}
     
     """
     

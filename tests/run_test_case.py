@@ -4,7 +4,6 @@ import os
 import pandas as pd
 import rasterio
 import json
-from pprint import pprint
 import csv
 
 from utils.shared_functions import get_contingency_table_from_binary_rasters, compute_stats_from_contingency_table
@@ -15,6 +14,20 @@ TEST_CASES_DIR = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_
 
 
 def profile_test_case_archive(archive_to_check, return_interval):
+    """
+    This function searches multiple directories and locates previously produced performance statistics.
+    
+    Args:
+        archive_to_check (str): The directory path to search.
+        return_interval (str): Because a benchmark dataset may have multiple return intervals, this argument defines
+                               which return interval is to be used when searching for previous statistics.
+    Returns:
+        archive_dictionary (dict): A dictionary of available statistics for previous versions of the domain and return interval.
+                                  {version: {agreement_raster: agreement_raster_path, stats_csv: stats_csv_path, stats_json: stats_json_path}}
+                                  *Will only add the paths to files that exist.
+    
+    """
+    
     
     archive_dictionary = {}
     
@@ -42,6 +55,20 @@ def profile_test_case_archive(archive_to_check, return_interval):
 
 
 def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster=None, stats_csv=None, stats_json=None):
+    """
+    This function contains FIM-specific logic to prepare raster datasets for use in the generic get_contingency_table_from_binary_rasters() function.
+    This function also calls the generic compute_stats_from_contingency_table() function and writes the results to CSV and/or JSON, depending on user input.
+    
+    Args:
+        predicted_raster_path (str): The path to the predicted, or modeled, FIM extent raster.
+        benchmark_raster_path (str): The path to the benchmark, or truth, FIM extent raster.
+        agreement_raster (str): Optional. An agreement raster will be written to this path. 0: True Negatives, 1: False Negative, 2: False Positive, 3: True Positive.
+        stats_csv (str): Optional. Performance statistics will be written to this path. CSV allows for readability and other tabular processes.
+        stats_json (str): Optional. Performance statistics will be written to this path. JSON allows for quick ingestion into Python dictionary in other processes.
+        
+    Returns:
+        stats_dictionary (dict): A dictionary of statistics produced by compute_stats_from_contingency_table(). Statistic names are keys and statistic values are the values.
+    """
     
     # Get cell size of benchmark raster.
     raster = rasterio.open(benchmark_raster_path)
@@ -60,7 +87,6 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
 
     # Write the stats_dictionary to the stats_csv.
     if stats_csv != None:
-        
         df = pd.DataFrame.from_dict(stats_dictionary, orient="index", columns=['value'])
         df.to_csv(stats_csv)
         
@@ -107,12 +133,11 @@ if __name__ == '__main__':
     huc = '12090301'
     return_interval = '100yr'
     
+    # Construct paths to development test results if not existent.
     branch_test_case_dir = os.path.join(TEST_CASES_DIR, huc, benchmark_category, 'performance_archive', 'development_versions', branch)
     if not os.path.exists(branch_test_case_dir):
         os.makedirs(branch_test_case_dir)
-    
-    # Construct paths to development test results if not existent.
-    
+        
     predicted_raster_path = inundation_raster
     benchmark_raster_path = r"C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\ble_huc_12090301_500yr\ble_huc_12090301_inundation_extent_500yr.tif"
     agreement_raster = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\testing2\agreement3.tif'
@@ -123,17 +148,15 @@ if __name__ == '__main__':
     # Compare to previous stats files that are available.    
     archive_to_check = os.path.join(TEST_CASES_DIR, huc, benchmark_category, 'performance_archive', 'previous_versions')
     archive_dictionary = profile_test_case_archive(archive_to_check, return_interval)
-
     regression_dict = {}
     for previous_version, paths in archive_dictionary.items():
         print("Comparing results to " + previous_version)
         previous_version_stats_json_path = paths['stats_json']
         difference_dict = check_for_regression(stats_json, previous_version, previous_version_stats_json_path)
-        
         # Append results
         regression_dict.update({previous_version: difference_dict})
         
-    # Parse values from dictionary from writing. Not the most Pythonic, but works fast.
+    # Parse values from dictionary for writing. Not the most Pythonic, but works fast.
     version_list = list(regression_dict.keys())
     stat_names_list = list(regression_dict[version_list[0]].keys())
     lines = []
