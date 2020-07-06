@@ -9,8 +9,10 @@ import csv
 from utils.shared_functions import get_contingency_table_from_binary_rasters, compute_stats_from_contingency_table
 
 
-TEST_CASES_DIR = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases'
+#TEST_CASES_DIR = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases'
 TEST_CASES_DIR = r'../../data/test_cases/'  # Will update.
+WBD_GEOPACKAGE = r'../../data/inputs/wbd/WBD_National.gpkg'
+
 from inundation import inundate
 
 
@@ -115,7 +117,6 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
 
 if __name__ == '__main__':
         
-    
     branch = 'ffd-example-10'
     benchmark_category = 'ble'
     huc = '12090301'
@@ -133,15 +134,17 @@ if __name__ == '__main__':
     rating_curve = r'../../data/outputs/120903/src.json'
     cross_walk = r'../../data/outputs/120903/crosswalk_table.csv'
 #    inundation_raster = r"../../data/benchmark_from_raster/ble_huc_12090301_inundation_extent_100yr_mod.tif"
-    inundation_raster = os.path.join(branch_test_case_dir, 'inundation_extent_' + huc + '.tif')
+    inundation_raster = os.path.join(branch_test_case_dir, 'inundation_extent' + '.tif')
 
     # Run inundate.
     print("Running inundation...")
-    inundate(rem, catchments, forecast, rating_curve, cross_walk, inundation_raster=inundation_raster)
+    inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=WBD_GEOPACKAGE,
+             hucs_layerName='WBDHU8',num_workers=1,inundation_raster=inundation_raster,inundation_polygon=None,
+             depths=None,out_raster_profile=None,out_vector_profile=None,aggregate=False,current_huc=huc)
     
-    predicted_raster_path = inundation_raster
+    predicted_raster_path = os.path.join(branch_test_case_dir, 'inundation_extent' + huc + '.tif')
 #    benchmark_raster_path = r"../../data/benchmark_from_raster/ble_huc_12090301_inundation_extent_500yr_mod.tif"
-    benchmark_raster_path = r"../../data/outputs/tests/inundation_extent_12090301.tif"
+    benchmark_raster_path = r"../../data/outputs/tests/inundation_extent.tif"
 
     agreement_raster = os.path.join(branch_test_case_dir, 'agreement.tif')
     stats_json = os.path.join(branch_test_case_dir, 'stats.json')
