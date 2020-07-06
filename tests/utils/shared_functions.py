@@ -97,7 +97,11 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     Bal_ACC = np.mean([TPR,TNR])
     F1_score = (2*true_positives) / (2*true_positives + false_positives + false_negatives)
 
-    stats_dictionary = {'percent_correct': percent_correct,
+    stats_dictionary = {'true_negatives': true_negatives,
+                        'false_negatives': false_negatives,
+                        'true_positives': true_positives,
+                        'false_positives': false_positives,
+                        'percent_correct': percent_correct,
                         'pod': pod,
                         'far': far,
                         'csi': csi,
@@ -170,7 +174,7 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
             profile = benchmark_src.profile
             profile.update(nodata=None)
             with rasterio.open(agreement_raster, 'w', **profile) as dst:
-                dst.write(agreement_array.astype(rasterio.uint8), 1)
+                dst.write(agreement_array, 1)
 
     # Store summed pixel counts in dictionary.
     contingency_table_dictionary = { 'true_negatives': int((agreement_array == 0).sum()),

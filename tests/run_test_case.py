@@ -9,8 +9,9 @@ import csv
 from utils.shared_functions import get_contingency_table_from_binary_rasters, compute_stats_from_contingency_table
 
 
-TEST_CASES_DIR = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases'  # Will update.
-#from inundation import inundate
+TEST_CASES_DIR = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases'
+TEST_CASES_DIR = r'../../data/test_cases/'  # Will update.
+from inundation import inundate
 
 
 def profile_test_case_archive(archive_to_check, return_interval):
@@ -27,7 +28,6 @@ def profile_test_case_archive(archive_to_check, return_interval):
                                   *Will only add the paths to files that exist.
     
     """
-    
     
     archive_dictionary = {}
     
@@ -115,32 +115,35 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
 
 if __name__ == '__main__':
         
-    # These will be passed from inundate.
-#    rem = ''
-#    catchments = ''
-#    forecast = ''
-#    rating_curve = ''
-#    cross_walk = ''
-    inundation_raster = r"C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\ble_huc_12090301_100yr\ble_huc_12090301_inundation_extent_100yr.tif"
-#    inundation_polygon = ''
-#    depths = ''
-#    
-#    # Run inundate.
-#    inundate(rem, catchments, forecast, rating_curve, cross_walk, inundation_raster, inundation_polygon, depths)
-#    
-    branch = 'ffd-example'
+    
+    branch = 'ffd-example-10'
     benchmark_category = 'ble'
     huc = '12090301'
     return_interval = '100yr'
     
     # Construct paths to development test results if not existent.
-    branch_test_case_dir = os.path.join(TEST_CASES_DIR, huc, benchmark_category, 'performance_archive', 'development_versions', branch)
+    branch_test_case_dir = os.path.join(TEST_CASES_DIR, huc, benchmark_category, 'performance_archive', 'development_versions', branch, return_interval)
     if not os.path.exists(branch_test_case_dir):
         os.makedirs(branch_test_case_dir)
-        
+    
+    # These will be passed from inundate.
+    rem = r'../../data/outputs/120903/rem_clipped_zeroed_masked.tif'
+    catchments = r'../../data/outputs/120903/gw_catchments_reaches_clipped_addedAttributes.tif'
+    forecast = r'../../data/test_cases/12090301/ble/validation_data/100yr/forecast_120903_100yr.csv'
+    rating_curve = r'../../data/outputs/120903/src.json'
+    cross_walk = r'../../data/outputs/120903/crosswalk_table.csv'
+#    inundation_raster = r"../../data/benchmark_from_raster/ble_huc_12090301_inundation_extent_100yr_mod.tif"
+    inundation_raster = os.path.join(branch_test_case_dir, 'inundation_extent_' + huc + '.tif')
+
+    # Run inundate.
+    print("Running inundation...")
+    inundate(rem, catchments, forecast, rating_curve, cross_walk, inundation_raster=inundation_raster)
+    
     predicted_raster_path = inundation_raster
-    benchmark_raster_path = r"C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\ble_huc_12090301_500yr\ble_huc_12090301_inundation_extent_500yr.tif"
-    agreement_raster = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases\ble\ble_huc_12090301\testing2\agreement3.tif'
+#    benchmark_raster_path = r"../../data/benchmark_from_raster/ble_huc_12090301_inundation_extent_500yr_mod.tif"
+    benchmark_raster_path = r"../../data/outputs/tests/inundation_extent_12090301.tif"
+
+    agreement_raster = os.path.join(branch_test_case_dir, 'agreement.tif')
     stats_json = os.path.join(branch_test_case_dir, 'stats.json')
     stats_csv = os.path.join(branch_test_case_dir, 'stats.csv')
     stats_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster, stats_csv=stats_csv, stats_json=stats_json)
