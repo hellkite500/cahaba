@@ -13,6 +13,7 @@ from utils.shared_functions import get_contingency_table_from_binary_rasters, co
 TEST_CASES_DIR = r'../../data/test_cases/'  # Will update.
 WBD_GEOPACKAGE = r'../../data/inputs/wbd/WBD_National.gpkg'
 
+
 from inundation import inundate
 
 
@@ -130,10 +131,9 @@ if __name__ == '__main__':
     # These will be passed from inundate.
     rem = r'../../data/outputs/120903/rem_clipped_zeroed_masked.tif'
     catchments = r'../../data/outputs/120903/gw_catchments_reaches_clipped_addedAttributes.tif'
-    forecast = r'../../data/test_cases/12090301/ble/validation_data/100yr/forecast_120903_100yr.csv'
+    forecast = os.path.join(TEST_CASES_DIR, huc, benchmark_category, 'validation_data', return_interval, benchmark_category + '_huc_' + huc + '_flows_' + return_interval + '.csv')
     rating_curve = r'../../data/outputs/120903/src.json'
     cross_walk = r'../../data/outputs/120903/crosswalk_table.csv'
-#    inundation_raster = r"../../data/benchmark_from_raster/ble_huc_12090301_inundation_extent_100yr_mod.tif"
     inundation_raster = os.path.join(branch_test_case_dir, 'inundation_extent' + '.tif')
 
     # Run inundate.
@@ -141,10 +141,9 @@ if __name__ == '__main__':
     inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=WBD_GEOPACKAGE,
              hucs_layerName='WBDHU8',num_workers=1,inundation_raster=inundation_raster,inundation_polygon=None,
              depths=None,out_raster_profile=None,out_vector_profile=None,aggregate=False,current_huc=huc)
-    
-    predicted_raster_path = os.path.join(branch_test_case_dir, 'inundation_extent' + huc + '.tif')
-#    benchmark_raster_path = r"../../data/benchmark_from_raster/ble_huc_12090301_inundation_extent_500yr_mod.tif"
-    benchmark_raster_path = r"../../data/outputs/tests/inundation_extent.tif"
+
+    predicted_raster_path = os.path.join(branch_test_case_dir, 'inundation_extent_' + huc + '.tif')  # The inundate function changes the inundation raster filename.
+    benchmark_raster_path = os.path.join(TEST_CASES_DIR, huc, benchmark_category, 'validation_data', return_interval, benchmark_category + '_huc_' + huc + '_inundation_extent_' + return_interval + '.tif')
 
     agreement_raster = os.path.join(branch_test_case_dir, 'agreement.tif')
     stats_json = os.path.join(branch_test_case_dir, 'stats.json')
