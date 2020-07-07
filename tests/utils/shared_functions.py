@@ -158,54 +158,26 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
     import numpy as np
         
     # Load rasters.
-    benchmark_src = rasterio.open(benchmark_raster_path)
-    
-    print(benchmark_src.nodata)
-    
+    benchmark_src = rasterio.open(benchmark_raster_path)    
     benchmark_array = benchmark_src.read(1)
     predicted_src = rasterio.open(predicted_raster_path)
-    
-    print(predicted_src.nodata)
     predicted_array = predicted_src.read(1)
-    
-    print('BLE')
-    print(benchmark_array.shape)
-    print(" ")
-    
-    print("FIM 3.0")
-    print(predicted_array.shape)
-    
+
     # WILL NOT STAY--JUST DEALING WITH DIFFERENT SHAPES OF INPUT DATA:
     benchmark_array = benchmark_array[:, :-1]
     
     # Ensure zeros and ones for binary comparison. Assume that positive values mean flooding and 0 or negative values mean dry. TODO. 
-    predicted_array = np.where(predicted_array==0, 10, predicted_array)  # Reclassify NoData to 10
+    predicted_array = np.where(predicted_array==predicted_src.nodata, 10, predicted_array)  # Reclassify NoData to 10
     predicted_array = np.where(predicted_array<0, 0, predicted_array)
     predicted_array = np.where(predicted_array>0, 1, predicted_array)
     
-    benchmark_array = np.where(benchmark_array==3, 10, benchmark_array)  # Reclassify NoData to 10
-
-    
-#    for p in predicted_array:
-#        for n in p:
-#            if n not in pred_list:
-#                pred_list.append(n)
-#
-#    for x in benchmark_array:
-#        for c in x:
-#            if c not in bench_list:
-#                bench_list.append(c)
-#                
-#    print(pred_list)
-#    print(bench_list)
+    benchmark_array = np.where(benchmark_array==benchmark_src.nodata, 10, benchmark_array)  # Reclassify NoData to 10
 
     # Create agreement_array in memory.
     agreement_array = np.add(benchmark_array, 2*predicted_array)
     
-#    # Mask out the NoData areas
-#    benchmark_nodata_index = np.where(predicted_array ==3)
+    # Mask out the NoData areas
     agreement_array = np.where(agreement_array>3, 10, agreement_array)
-    
     
     # Only write the agreement raster if user-specified.
     if agreement_raster != None:
