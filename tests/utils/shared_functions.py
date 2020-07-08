@@ -166,7 +166,7 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
     # WILL NOT STAY--JUST DEALING WITH DIFFERENT SHAPES OF INPUT DATA:
     benchmark_array = benchmark_array[:, :-1]
     
-    # Ensure zeros and ones for binary comparison. Assume that positive values mean flooding and 0 or negative values mean dry. TODO. 
+    # Ensure zeros and ones for binary comparison. Assume that positive values mean flooding and 0 or negative values mean dry. 
     predicted_array = np.where(predicted_array==predicted_src.nodata, 10, predicted_array)  # Reclassify NoData to 10
     predicted_array = np.where(predicted_array<0, 0, predicted_array)
     predicted_array = np.where(predicted_array>0, 1, predicted_array)

@@ -11,9 +11,8 @@ from utils.shared_functions import get_contingency_table_from_binary_rasters, co
 
 
 #TEST_CASES_DIR = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases'
-TEST_CASES_DIR = r'../../data/test_cases/'  # Will update.
-WBD_GEOPACKAGE = r'../../data/inputs/wbd/WBD_National.gpkg'
-
+TEST_CASES_DIR = r'/data/test_cases/'  # Will update.
+INPUTS_DIR = r'/data/inputs'
 
 from inundation import inundate
 
@@ -121,47 +120,43 @@ if __name__ == '__main__':
     
     # parse arguments
     parser = argparse.ArgumentParser(description='Inundation mapping and regression analysis for FOSS FIM. Regression analysis results are stored in the test directory.')
-    parser.add_argument('-r','--rem', help='REM raster at job level or mosaic vrt. Must match catchments CRS.', required=True)
-    parser.add_argument('-c','--catchments',help='Catchments raster at job level or mosaic VRT. Must match rem CRS.',required=True)
-    parser.add_argument('-f','--forecast',help='Forecast discharges in CMS as CSV file',required=True)
-    parser.add_argument('-s','--rating-curve',help='SRC JSON file',required=True)
-    parser.add_argument('-w','--cross-walk',help='Cross-walk table csv',required=True)
-    parser.add_argument('-u','--hucs',help='HUCs file to process at. Must match CRS of input rasters',required=False,default=None)
-    parser.add_argument('-l','--hucs-layerName',help='Layer name in HUCs file to use',required=False,default=None)
-    parser.add_argument('-n','--num-workers',help='Number of concurrent processes',required=False,default=1,type=int)
-    parser.add_argument('-i','--inundation-raster',help='Inundation Raster output. Only writes if designated.',required=False,default=None)
-    parser.add_argument('-p','--inundation-polygon',help='Inundation polygon output. Only writes if designated.',required=False,default=None)
-    parser.add_argument('-d','--depths',help='Depths raster output. Only writes if designated.',required=False,default=None)
-    parser.add_argument('-a','--aggregate',help='Aggregate outputs to VRT files',required=False,action='store_true')
-    parser.add_argument('-t','--current-huc',help='May deprecate soon, likely temporary. Pass current HUC code',required=True,default=None)
+    parser.add_argument('-r','--fim-run-output',help='Path to directory containing outputs of fim_run.sh',required=True)
     parser.add_argument('-b', '--branch-name',help='The name of the working branch in which features are being tested',required=True,default="")
-    parser.add_argument('-m', '--benchmark-category',help='The category of benchmark dataset. Options include: BLE',required=True,default="BLE")
+    parser.add_argument('-t','--test-id',help='The test_id to use. Format as: HUC_BENCHMARKTYPE, e.g. 12345678_ble.',required=True,default="")
     parser.add_argument('-y', '--return-interval',help='The return interval to check. Options include: 100yr, 500yr',required=True,default="BLE")
-
-    # extract to dictionary
-    args = vars(parser.parse_args())
-
-    # inundation variables
-    rem = args['rem']
-    catchments = args['catchments']
-    rating_curve = args['rating_curve']
-    forecast = args['forecast']
-    cross_walk = args['cross_walk']
-    current_huc = args['current_huc']
-    hucs = args['hucs']
-    hucs_layerName = args['hucs_layerName']
-    inundation_raster = args['inundation_raster']
     
-    # Regression variables
-    benchmark_category = args['benchmark_category'].lower()
+    # Extract to dictionary and assign to variables.
+    args = vars(parser.parse_args())
+    test_id = args['test_id']
+    fim_run_dir = args['fim_run_output']
     branch = args['branch_name']
     return_interval = args['return_interval']
-
+    
+    # Create paths to fim_run outputs for use in inundate().
+    rem = os.path.join(fim_run_dir, 'rem_clipped_zeroed_masked.tif')
+    catchments = os.path.join(fim_run_dir, 'gw_catchments_reaches_clipped_addedAttributes.tif')
+    rating_curve = os.path.join(fim_run_dir, 'src.json')
+    cross_walk = os.path.join(fim_run_dir, 'crosswalk_table.csv')
+    current_huc = test_id.split('_')[0]
+    hucs = os.path.join(INPUTS_DIR, 'wbd', 'WBD_National.gpkg')
+    hucs_layerName = 'WBDHU8'
+    
     # Construct paths to development test results if not existent.
-    branch_test_case_dir = os.path.join(TEST_CASES_DIR, current_huc, benchmark_category, 'performance_archive', 'development_versions', branch, return_interval)
+    branch_test_case_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch, return_interval)
     if not os.path.exists(branch_test_case_dir):
         os.makedirs(branch_test_case_dir)
+        
+    inundation_outputs_dir = os.path.join(branch_test_case_dir, 'inundation_outputs')
+    if not os.path.exists(inundation_outputs_dir):
+        os.makedirs(inundation_outputs_dir)
     
+    inundation_raster = os.path.join(inundation_outputs_dir, 'inundation_extent.tif')
+        
+    # Construct path to validation raster and forecast file.
+    benchmark_category = test_id.split('_')[1]
+    benchmark_raster_path = os.path.join(TEST_CASES_DIR, test_id, 'validation_data', return_interval, benchmark_category + '_huc_' + current_huc + '_inundation_extent_' + return_interval + '.tif')
+    forecast = os.path.join(TEST_CASES_DIR, test_id, 'validation_data', return_interval, benchmark_category + '_huc_' + current_huc + '_flows_' + return_interval + '.csv')
+
     # Run inundate.
     print("Running inundation...")
     inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=hucs,
@@ -169,11 +164,9 @@ if __name__ == '__main__':
              depths=None,out_raster_profile=None,out_vector_profile=None,aggregate=False,current_huc=current_huc)
 
     predicted_raster_path = os.path.join(os.path.split(inundation_raster)[0], os.path.split(inundation_raster)[1].replace('.tif', '_' + current_huc + '.tif'))  # The inundate adds the huc to the name so I account for that here.
-    benchmark_raster_path = os.path.join(TEST_CASES_DIR, current_huc, benchmark_category, 'validation_data', return_interval, benchmark_category + '_huc_' + current_huc + '_inundation_extent_' + return_interval + '.tif')
 
-    agreement_raster = os.path.join(branch_test_case_dir, 'agreement.tif')
-    stats_json = os.path.join(branch_test_case_dir, 'stats.json')
-    stats_csv = os.path.join(branch_test_case_dir, 'stats.csv')
+    # Define outputs for agreement_raster, stats_json, and stats_csv.
+    agreement_raster, stats_json, stats_csv = os.path.join(branch_test_case_dir, 'agreement.tif'), os.path.join(branch_test_case_dir, 'stats.json'), os.path.join(branch_test_case_dir, 'stats.csv')
     stats_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster, stats_csv=stats_csv, stats_json=stats_json)
     
     # Compare to previous stats files that are available.    
@@ -184,7 +177,6 @@ if __name__ == '__main__':
         print("Comparing results to " + previous_version)
         previous_version_stats_json_path = paths['stats_json']
         difference_dict = check_for_regression(stats_json, previous_version, previous_version_stats_json_path)
-        # Append results
         regression_dict.update({previous_version: difference_dict})
         
     # Parse values from dictionary for writing. Not the most Pythonic, but works fast.
@@ -205,16 +197,3 @@ if __name__ == '__main__':
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(version_list)
         csv_writer.writerows(lines)
-        
-    
-
-
-
-
-
-
-
-
-
-
-
