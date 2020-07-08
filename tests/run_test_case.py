@@ -116,33 +116,18 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
     return difference_dict
 
 
-if __name__ == '__main__':
-    
-    # parse arguments
-    parser = argparse.ArgumentParser(description='Inundation mapping and regression analysis for FOSS FIM. Regression analysis results are stored in the test directory.')
-    parser.add_argument('-r','--fim-run-output',help='Path to directory containing outputs of fim_run.sh',required=True)
-    parser.add_argument('-b', '--branch-name',help='The name of the working branch in which features are being tested',required=True,default="")
-    parser.add_argument('-t','--test-id',help='The test_id to use. Format as: HUC_BENCHMARKTYPE, e.g. 12345678_ble.',required=True,default="")
-    parser.add_argument('-y', '--return-interval',help='The return interval to check. Options include: 100yr, 500yr',required=True,default="BLE")
-    
-    # Extract to dictionary and assign to variables.
-    args = vars(parser.parse_args())
-    test_id = args['test_id']
-    fim_run_dir = args['fim_run_output']
-    branch = args['branch_name']
-    return_interval = args['return_interval']
+def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval):
     
     # Create paths to fim_run outputs for use in inundate().
     rem = os.path.join(fim_run_dir, 'rem_clipped_zeroed_masked.tif')
     catchments = os.path.join(fim_run_dir, 'gw_catchments_reaches_clipped_addedAttributes.tif')
-    rating_curve = os.path.join(fim_run_dir, 'src.json')
-    cross_walk = os.path.join(fim_run_dir, 'crosswalk_table.csv')
+    rating_curve = os.path.join(fim_run_dir, 'src.json')  # Will be replaced by hydrotable
+    cross_walk = os.path.join(fim_run_dir, 'crosswalk_table.csv')  # Will be replaced by hydrotable
     current_huc = test_id.split('_')[0]
-    hucs = os.path.join(INPUTS_DIR, 'wbd', 'WBD_National.gpkg')
-    hucs_layerName = 'WBDHU8'
+    hucs, hucs_layerName = os.path.join(INPUTS_DIR, 'wbd', 'WBD_National.gpkg'), 'WBDHU8'
     
     # Construct paths to development test results if not existent.
-    branch_test_case_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch, return_interval)
+    branch_test_case_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch_name, return_interval)
     if not os.path.exists(branch_test_case_dir):
         os.makedirs(branch_test_case_dir)
         
@@ -167,7 +152,7 @@ if __name__ == '__main__':
 
     # Define outputs for agreement_raster, stats_json, and stats_csv.
     agreement_raster, stats_json, stats_csv = os.path.join(branch_test_case_dir, 'agreement.tif'), os.path.join(branch_test_case_dir, 'stats.json'), os.path.join(branch_test_case_dir, 'stats.csv')
-    stats_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster, stats_csv=stats_csv, stats_json=stats_json)
+    compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster, stats_csv=stats_csv, stats_json=stats_json)
     
     # Compare to previous stats files that are available.    
     archive_to_check = os.path.join(TEST_CASES_DIR, current_huc, benchmark_category, 'performance_archive', 'previous_versions')
@@ -189,7 +174,7 @@ if __name__ == '__main__':
             stat_line.append(regression_dict[version][stat])
         stat_line.insert(0, stat)
         lines.append(stat_line)
-    header = version_list.insert(0, " ")
+    version_list.insert(0, " ")
     
     # Write test results.
     regression_report_csv = os.path.join(branch_test_case_dir, 'regression_report.csv')
@@ -197,3 +182,20 @@ if __name__ == '__main__':
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(version_list)
         csv_writer.writerows(lines)
+
+
+if __name__ == '__main__':
+    
+    # parse arguments
+    parser = argparse.ArgumentParser(description='Inundation mapping and regression analysis for FOSS FIM. Regression analysis results are stored in the test directory.')
+    parser.add_argument('-r','--fim-run-dir',help='Path to directory containing outputs of fim_run.sh',required=True)
+    parser.add_argument('-b', '--branch-name',help='The name of the working branch in which features are being tested',required=True,default="")
+    parser.add_argument('-t','--test-id',help='The test_id to use. Format as: HUC_BENCHMARKTYPE, e.g. 12345678_ble.',required=True,default="")
+    parser.add_argument('-y', '--return-interval',help='The return interval to check. Options include: 100yr, 500yr',required=True,default="BLE")
+    
+    # Extract to dictionary and assign to variables.
+    args = vars(parser.parse_args())
+
+    run_alpha_test(**args)
+
+    
