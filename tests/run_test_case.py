@@ -9,8 +9,6 @@ import argparse
 
 from utils.shared_functions import get_contingency_table_from_binary_rasters, compute_stats_from_contingency_table
 
-
-#TEST_CASES_DIR = r'C:\Users\bradford.bates\Desktop\fim_share\foss_fim_new2\test_cases'
 TEST_CASES_DIR = r'/data/test_cases/'  # Will update.
 INPUTS_DIR = r'/data/inputs'
 
@@ -116,7 +114,7 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
     return difference_dict
 
 
-def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval):
+def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous):
     
     # Create paths to fim_run outputs for use in inundate().
     rem = os.path.join(fim_run_dir, 'rem_clipped_zeroed_masked.tif')
@@ -130,12 +128,8 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval):
     branch_test_case_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch_name, return_interval)
     if not os.path.exists(branch_test_case_dir):
         os.makedirs(branch_test_case_dir)
-        
-    inundation_outputs_dir = os.path.join(branch_test_case_dir, 'inundation_outputs')
-    if not os.path.exists(inundation_outputs_dir):
-        os.makedirs(inundation_outputs_dir)
     
-    inundation_raster = os.path.join(inundation_outputs_dir, 'inundation_extent.tif')
+    inundation_raster = os.path.join(branch_test_case_dir, 'inundation_extent.tif')
         
     # Construct path to validation raster and forecast file.
     benchmark_category = test_id.split('_')[1]
@@ -151,51 +145,64 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval):
     predicted_raster_path = os.path.join(os.path.split(inundation_raster)[0], os.path.split(inundation_raster)[1].replace('.tif', '_' + current_huc + '.tif'))  # The inundate adds the huc to the name so I account for that here.
 
     # Define outputs for agreement_raster, stats_json, and stats_csv.
+    print("Comparing predicted inundation to benchmark inundation...")
     agreement_raster, stats_json, stats_csv = os.path.join(branch_test_case_dir, 'agreement.tif'), os.path.join(branch_test_case_dir, 'stats.json'), os.path.join(branch_test_case_dir, 'stats.csv')
     compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster, stats_csv=stats_csv, stats_json=stats_json)
     
-    # Compare to previous stats files that are available.    
-    archive_to_check = os.path.join(TEST_CASES_DIR, current_huc, benchmark_category, 'performance_archive', 'previous_versions')
-    archive_dictionary = profile_test_case_archive(archive_to_check, return_interval)
-    regression_dict = {}
-    for previous_version, paths in archive_dictionary.items():
-        print("Comparing results to " + previous_version)
-        previous_version_stats_json_path = paths['stats_json']
-        difference_dict = check_for_regression(stats_json, previous_version, previous_version_stats_json_path)
-        regression_dict.update({previous_version: difference_dict})
+    if compare_to_previous:
+        # Compare to previous stats files that are available.    
+        archive_to_check = os.path.join(TEST_CASES_DIR, current_huc, benchmark_category, 'performance_archive', 'previous_versions')
+        archive_dictionary = profile_test_case_archive(archive_to_check, return_interval)
+        regression_dict = {}
+        for previous_version, paths in archive_dictionary.items():
+            print("Comparing results to " + previous_version)
+            previous_version_stats_json_path = paths['stats_json']
+            difference_dict = check_for_regression(stats_json, previous_version, previous_version_stats_json_path)
+            regression_dict.update({previous_version: difference_dict})
+            
+        # Parse values from dictionary for writing. Not the most Pythonic, but works fast.
+        version_list = list(regression_dict.keys())
+        stat_names_list = list(regression_dict[version_list[0]].keys())
+        lines = []
+        for stat in stat_names_list:
+            stat_line = []
+            for version in version_list:
+                stat_line.append(regression_dict[version][stat])
+            stat_line.insert(0, stat)
+            lines.append(stat_line)
+        version_list.insert(0, " ")
         
-    # Parse values from dictionary for writing. Not the most Pythonic, but works fast.
-    version_list = list(regression_dict.keys())
-    stat_names_list = list(regression_dict[version_list[0]].keys())
-    lines = []
-    for stat in stat_names_list:
-        stat_line = []
-        for version in version_list:
-            stat_line.append(regression_dict[version][stat])
-        stat_line.insert(0, stat)
-        lines.append(stat_line)
-    version_list.insert(0, " ")
+        # Write test results.
+        regression_report_csv = os.path.join(branch_test_case_dir, 'regression_report.csv')
+        with open(regression_report_csv, 'w', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+            csv_writer.writerow(version_list)
+            csv_writer.writerows(lines)
+          
+    print(" ")
+    print("Completed. Stats outputs for " + test_id + " are in " + branch_test_case_dir)
+    print(" ")
     
-    # Write test results.
-    regression_report_csv = os.path.join(branch_test_case_dir, 'regression_report.csv')
-    with open(regression_report_csv, 'w', newline='') as csvfile:
-        csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(version_list)
-        csv_writer.writerows(lines)
-
 
 if __name__ == '__main__':
     
-    # parse arguments
+    # Parse arguments.
     parser = argparse.ArgumentParser(description='Inundation mapping and regression analysis for FOSS FIM. Regression analysis results are stored in the test directory.')
     parser.add_argument('-r','--fim-run-dir',help='Path to directory containing outputs of fim_run.sh',required=True)
     parser.add_argument('-b', '--branch-name',help='The name of the working branch in which features are being tested',required=True,default="")
     parser.add_argument('-t','--test-id',help='The test_id to use. Format as: HUC_BENCHMARKTYPE, e.g. 12345678_ble.',required=True,default="")
     parser.add_argument('-y', '--return-interval',help='The return interval to check. Options include: 100yr, 500yr',required=True,default="BLE")
+    parser.add_argument('-c', '--compare-to-previous', help='Compare to previous versions of HAND.', required=False,action='store_true')
     
     # Extract to dictionary and assign to variables.
     args = vars(parser.parse_args())
-
-    run_alpha_test(**args)
+    
+    # TEMPORARY CODE
+    if args['test_id'] != '12090301_ble' or args['compare_to_previous'] == True:
+        import sys
+        print("Only the 12090301_ble test case is supported at this time. Additional benchmark data are being processed and will be added soon. Compare previous versions (-c) will be available after backfilling has been done.")
+        sys.exit()
+    else:  
+        run_alpha_test(**args)
 
     
