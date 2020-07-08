@@ -5,6 +5,7 @@ import pandas as pd
 import rasterio
 import json
 import csv
+import argparse
 
 from utils.shared_functions import get_contingency_table_from_binary_rasters, compute_stats_from_contingency_table
 
@@ -117,33 +118,58 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
 
 
 if __name__ == '__main__':
-        
-    branch = 'ffd-example-10'
-    benchmark_category = 'ble'
-    huc = '12090301'
-    return_interval = '100yr'
     
+    # parse arguments
+    parser = argparse.ArgumentParser(description='Inundation mapping and regression analysis for FOSS FIM. Regression analysis results are stored in the test directory.')
+    parser.add_argument('-r','--rem', help='REM raster at job level or mosaic vrt. Must match catchments CRS.', required=True)
+    parser.add_argument('-c','--catchments',help='Catchments raster at job level or mosaic VRT. Must match rem CRS.',required=True)
+    parser.add_argument('-f','--forecast',help='Forecast discharges in CMS as CSV file',required=True)
+    parser.add_argument('-s','--rating-curve',help='SRC JSON file',required=True)
+    parser.add_argument('-w','--cross-walk',help='Cross-walk table csv',required=True)
+    parser.add_argument('-u','--hucs',help='HUCs file to process at. Must match CRS of input rasters',required=False,default=None)
+    parser.add_argument('-l','--hucs-layerName',help='Layer name in HUCs file to use',required=False,default=None)
+    parser.add_argument('-n','--num-workers',help='Number of concurrent processes',required=False,default=1,type=int)
+    parser.add_argument('-i','--inundation-raster',help='Inundation Raster output. Only writes if designated.',required=False,default=None)
+    parser.add_argument('-p','--inundation-polygon',help='Inundation polygon output. Only writes if designated.',required=False,default=None)
+    parser.add_argument('-d','--depths',help='Depths raster output. Only writes if designated.',required=False,default=None)
+    parser.add_argument('-a','--aggregate',help='Aggregate outputs to VRT files',required=False,action='store_true')
+    parser.add_argument('-t','--current-huc',help='May deprecate soon, likely temporary. Pass current HUC code',required=True,default=None)
+    parser.add_argument('-b', '--branch-name',help='The name of the working branch in which features are being tested',required=True,default="")
+    parser.add_argument('-m', '--benchmark-category',help='The category of benchmark dataset. Options include: BLE',required=True,default="BLE")
+    parser.add_argument('-y', '--return-interval',help='The return interval to check. Options include: 100yr, 500yr',required=True,default="BLE")
+
+    # extract to dictionary
+    args = vars(parser.parse_args())
+
+    # inundation variables
+    rem = args['rem']
+    catchments = args['catchments']
+    rating_curve = args['rating_curve']
+    forecast = args['forecast']
+    cross_walk = args['cross_walk']
+    current_huc = args['current_huc']
+    hucs = args['hucs']
+    hucs_layerName = args['hucs_layerName']
+    inundation_raster = args['inundation_raster']
+    
+    # Regression variables
+    benchmark_category = args['benchmark_category'].lower()
+    branch = args['branch_name']
+    return_interval = args['return_interval']
+
     # Construct paths to development test results if not existent.
-    branch_test_case_dir = os.path.join(TEST_CASES_DIR, huc, benchmark_category, 'performance_archive', 'development_versions', branch, return_interval)
+    branch_test_case_dir = os.path.join(TEST_CASES_DIR, current_huc, benchmark_category, 'performance_archive', 'development_versions', branch, return_interval)
     if not os.path.exists(branch_test_case_dir):
         os.makedirs(branch_test_case_dir)
     
-    # These will be passed from inundate.
-    rem = r'../../data/outputs/120903/rem_clipped_zeroed_masked.tif'
-    catchments = r'../../data/outputs/120903/gw_catchments_reaches_clipped_addedAttributes.tif'
-    forecast = os.path.join(TEST_CASES_DIR, huc, benchmark_category, 'validation_data', return_interval, benchmark_category + '_huc_' + huc + '_flows_' + return_interval + '.csv')
-    rating_curve = r'../../data/outputs/120903/src.json'
-    cross_walk = r'../../data/outputs/120903/crosswalk_table.csv'
-    inundation_raster = os.path.join(branch_test_case_dir, 'inundation_extent' + '.tif')
-
     # Run inundate.
     print("Running inundation...")
-    inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=WBD_GEOPACKAGE,
-             hucs_layerName='WBDHU8',num_workers=1,inundation_raster=inundation_raster,inundation_polygon=None,
-             depths=None,out_raster_profile=None,out_vector_profile=None,aggregate=False,current_huc=huc)
+    inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=hucs,
+             hucs_layerName=hucs_layerName,num_workers=1,inundation_raster=inundation_raster,inundation_polygon=None,
+             depths=None,out_raster_profile=None,out_vector_profile=None,aggregate=False,current_huc=current_huc)
 
-    predicted_raster_path = os.path.join(branch_test_case_dir, 'inundation_extent_' + huc + '.tif')  # The inundate function changes the inundation raster filename.
-    benchmark_raster_path = os.path.join(TEST_CASES_DIR, huc, benchmark_category, 'validation_data', return_interval, benchmark_category + '_huc_' + huc + '_inundation_extent_' + return_interval + '.tif')
+    predicted_raster_path = os.path.join(os.path.split(inundation_raster)[0], os.path.split(inundation_raster)[1].replace('.tif', '_' + current_huc + '.tif'))  # The inundate adds the huc to the name so I account for that here.
+    benchmark_raster_path = os.path.join(TEST_CASES_DIR, current_huc, benchmark_category, 'validation_data', return_interval, benchmark_category + '_huc_' + current_huc + '_inundation_extent_' + return_interval + '.tif')
 
     agreement_raster = os.path.join(branch_test_case_dir, 'agreement.tif')
     stats_json = os.path.join(branch_test_case_dir, 'stats.json')
@@ -151,7 +177,7 @@ if __name__ == '__main__':
     stats_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster, stats_csv=stats_csv, stats_json=stats_json)
     
     # Compare to previous stats files that are available.    
-    archive_to_check = os.path.join(TEST_CASES_DIR, huc, benchmark_category, 'performance_archive', 'previous_versions')
+    archive_to_check = os.path.join(TEST_CASES_DIR, current_huc, benchmark_category, 'performance_archive', 'previous_versions')
     archive_dictionary = profile_test_case_archive(archive_to_check, return_interval)
     regression_dict = {}
     for previous_version, paths in archive_dictionary.items():
