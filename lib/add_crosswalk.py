@@ -47,8 +47,8 @@ output_hydro_table = output_src.loc[:,['HydroID','feature_id','Stage','Discharge
 output_hydro_table.rename(columns={'Stage' : 'stage','Discharge (m3s-1)':'discharge_cms'},inplace=True)
 output_hydro_table['fossid'] = output_hydro_table.loc[:,'HydroID'].apply(lambda x : str(x)[0:4])
 input_huc['fossid'] = input_huc['fossid'].astype(str)
-output_hydro_table = output_hydro_table.merge(input_huc.loc[:,['fossid','huc8']],how='left',on='fossid')
-output_hydro_table = output_hydro_table.rename(columns={'huc8':'HUC'})
+output_hydro_table = output_hydro_table.merge(input_huc.loc[:,['fossid','HUC8']],how='left',on='fossid')
+output_hydro_table = output_hydro_table.rename(columns={'HUC8':'HUC'})
 output_hydro_table.drop(columns='fossid',inplace=True)
 
 # make src json
