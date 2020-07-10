@@ -119,10 +119,11 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     # Create paths to fim_run outputs for use in inundate().
     rem = os.path.join(fim_run_dir, 'rem_clipped_zeroed_masked.tif')
     catchments = os.path.join(fim_run_dir, 'gw_catchments_reaches_clipped_addedAttributes.tif')
-    rating_curve = os.path.join(fim_run_dir, 'src.json')  # Will be replaced by hydrotable
-    cross_walk = os.path.join(fim_run_dir, 'crosswalk_table.csv')  # Will be replaced by hydrotable
+#    rating_curve = os.path.join(fim_run_dir, 'src.json')  # Will be replaced by hydrotable
+#    cross_walk = os.path.join(fim_run_dir, 'crosswalk_table.csv')  # Will be replaced by hydrotable
     current_huc = test_id.split('_')[0]
     hucs, hucs_layerName = os.path.join(INPUTS_DIR, 'wbd', 'WBD_National.gpkg'), 'WBDHU8'
+    hydro_table = os.path.join(fim_run_dir, 'hydroTable.csv')
     
     # Construct paths to development test results if not existent.
     branch_test_case_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch_name, return_interval)
@@ -138,9 +139,12 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
 
     # Run inundate.
     print("Running inundation...")
-    inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=hucs,
-             hucs_layerName=hucs_layerName,num_workers=1,inundation_raster=inundation_raster,inundation_polygon=None,
-             depths=None,out_raster_profile=None,out_vector_profile=None,aggregate=False,current_huc=current_huc)
+    inundate(
+             rem,catchments,forecast,hydro_table=hydro_table,hucs=hucs,hucs_layerName=hucs_layerName,
+             num_workers=1,inundation_raster=inundation_raster,inundation_polygon=None,depths=None,
+             out_raster_profile=None,out_vector_profile=None,aggregate=False,
+             current_huc=current_huc,__rating_curve=None,__cross_walk=None
+            )
 
     predicted_raster_path = os.path.join(os.path.split(inundation_raster)[0], os.path.split(inundation_raster)[1].replace('.tif', '_' + current_huc + '.tif'))  # The inundate adds the huc to the name so I account for that here.
 
@@ -151,7 +155,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     
     if compare_to_previous:
         # Compare to previous stats files that are available.    
-        archive_to_check = os.path.join(TEST_CASES_DIR, current_huc, benchmark_category, 'performance_archive', 'previous_versions')
+        archive_to_check = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions')
         archive_dictionary = profile_test_case_archive(archive_to_check, return_interval)
         regression_dict = {}
         for previous_version, paths in archive_dictionary.items():
@@ -198,7 +202,7 @@ if __name__ == '__main__':
     args = vars(parser.parse_args())
     
     # TEMPORARY CODE
-    if args['test_id'] != '12090301_ble' or args['compare_to_previous'] == True:
+    if args['test_id'] != '12090301_ble':
         import sys
         print("Only the 12090301_ble test case is supported at this time. Additional benchmark data are being processed and will be added soon. Compare previous versions (-c) will be available after backfilling has been done.")
         sys.exit()
