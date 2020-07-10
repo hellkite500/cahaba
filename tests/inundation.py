@@ -21,9 +21,12 @@ import argparse
 import json
 
 
-def inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=None,
-             hucs_layerName=None,num_workers=1,inundation_raster=None,inundation_polygon=None,
-             depths=None,out_raster_profile=None,out_vector_profile=None,aggregate=False,current_huc=None):
+def inundate(
+             rem,catchments,forecast,hydro_table=None,hucs=None,hucs_layerName=None,
+             num_workers=1,inundation_raster=None,inundation_polygon=None,depths=None,
+             out_raster_profile=None,out_vector_profile=None,aggregate=False,
+             current_huc=None,__rating_curve=None,__cross_walk=None
+            ):
     """
     Run inundation on FIM 3.0 <= outputs at job-level scale or aggregated scale
     
@@ -60,6 +63,12 @@ def inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=None,
     if hucs is None:
         assert (not aggregate), "Pass HUCs file if aggregation is desired"
 
+    # check for proper hydroTable and crosswalk/src input usage
+    if (hydro_table is None) & ((__rating_curve is None) | (__cross_walk is None)):
+        raise AssertionError("Pass hydroTable or rating_curve/cross_walk")
+    if (hydro_table is not None) & ((__rating_curve is not None) | (__cross_walk is not None)):
+        raise AssertionError("Pass hydroTable or rating_curve/cross_walk")
+    
     # input rem
     if isinstance(rem,str): 
         rem = rasterio.open(rem)
@@ -89,7 +98,9 @@ def inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=None,
     assert ( (rem.transform*(0,0)) == (catchments.transform*(0,0)) ) & ( (rem.transform* (rem.width,rem.height)) == (catchments.transform*(catchments.width,catchments.height)) ), "REM and catchments rasters require same upper left and lower right extents"
 
     # open hucs
-    if isinstance(hucs,str):
+    if hucs is None:
+        pass
+    elif isinstance(hucs,str):
         hucs = fiona.open(hucs,'r',layer=hucs_layerName)
     elif isinstance(hucs,fiona.Collection):
         pass
@@ -99,9 +110,12 @@ def inundate(rem,catchments,forecast,rating_curve,cross_walk,hucs=None,
     # check for matching projections
     #assert to_string(hucs.crs) == rem.crs.to_proj4() == catchments.crs.to_proj4(), "REM, Catchment, and HUCS CRS definitions must match"
 
-    # make a catchment,stages numba dictionary
-    catchmentStagesDict = __make_catchment_stages_dictionary(forecast,rating_curve,cross_walk)
-    
+    # catchment stages dictionary
+    if hydro_table is not None:
+        catchmentStagesDict = __subset_hydroTable_to_forecast(hydro_table,forecast)
+    else:
+        raise TypeError("Pass hydro table csv")
+ 
     # make windows generator
     window_gen = __make_windows_generator(rem,catchments,catchmentStagesDict,inundation_raster,inundation_polygon,
                                           depths,out_raster_profile,out_vector_profile,hucs=hucs,hucSet=current_huc)
@@ -321,7 +335,7 @@ def __make_windows_generator(rem,catchments,catchmentStagesDict,inundation_raste
                 # temporary: will change with hydro-table introduction 
                 if huc['properties'][hucColName][0:len(hucSet)] not in hucSet:
                     continue
-            
+
             try:
                 #window = geometry_window(rem,shape(huc['geometry']))
                 rem_array,window_transform = mask(rem,shape(huc['geometry']),crop=True,indexes=1)
@@ -338,7 +352,7 @@ def __make_windows_generator(rem,catchments,catchmentStagesDict,inundation_raste
 
     else:
         hucCode = None
-        #window = Window(col_off=0,row_off=0,width=rem.width,height=rem.height)
+       #window = Window(col_off=0,row_off=0,width=rem.width,height=rem.height)
 
         yield (rem.read(1),catchments.read(1),rem.crs.wkt,
                rem.transform,rem.profile,catchments.profile,hucCode,
@@ -354,6 +368,49 @@ def __append_huc_code_to_file_name(fileName,hucCode):
     base_file_path,extension = splitext(fileName)
 
     return("{}_{}{}".format(base_file_path,hucCode,extension))
+
+
+def __subset_hydroTable_to_forecast(hydroTable,forecast):
+
+    if isinstance(hydroTable,str):
+        hydroTable = pd.read_csv(
+                                 hydroTable,index_col=['HUC','feature_id','HydroID'],
+                                 dtype={'HUC':str,'feature_id':str,
+                                         'HydroID':str,'stage':float,
+                                         'discharge_cms':float}
+                                )
+    elif isinstance(hydroTable,pd.DataFrame):
+        pass #consider checking for correct dtypes, indices, and columns
+    else:
+        raise TypeError("Pass path to hydro-table csv or Pandas DataFrame")
+    
+    if isinstance(forecast,str):
+        forecast = pd.read_csv(
+                               forecast,index_col='feature_id',
+                               dtype={'feature_id' : int , 'discharge' : float}
+                              )
+    elif isinstance(forecast,pd.DataFrame):
+        pass # consider checking for dtypes, indices, and columns
+    else:
+        raise TypeError("Pass path to forecast file csv or Pandas DataFrame")
+    
+    # join tables
+    hydroTable = hydroTable.join(forecast,on=['feature_id'],how='inner')
+    
+    # dictionary
+    catchmentStagesDict = typed.Dict.empty(types.int32,types.float64)
+
+    # interpolate stages
+    for hid,sub_table in hydroTable.groupby(level='HydroID'):
+        interpolated_stage = np.interp(sub_table.loc[:,'discharge'].unique(),sub_table.loc[:,'discharge_cms'],sub_table.loc[:,'stage'])
+        
+        # add this interpolated stage to catchment stages dict
+        h = round(interpolated_stage[0],4)
+
+        hid = types.int32(hid) ; h = types.float32(h)
+        catchmentStagesDict[hid] = h
+    
+    return(catchmentStagesDict)
 
 
 def __make_catchment_stages_dictionary(forecast_fileName,src_fileName,cross_walk_table_fileName):
@@ -426,17 +483,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Inundation mapping for FOSS FIM')
     parser.add_argument('-r','--rem', help='REM raster at job level or mosaic vrt. Must match catchments CRS.', required=True)
     parser.add_argument('-c','--catchments',help='Catchments raster at job level or mosaic VRT. Must match rem CRS.',required=True)
+    parser.add_argument('-t','--hydro-table',help='Hydro-table in csv file format',required=True)
+    #parser.add_argument('-s','--rating-curve',help='SRC JSON file',required=True)
+    #parser.add_argument('-w','--cross-walk',help='Cross-walk table csv',required=True)
     parser.add_argument('-f','--forecast',help='Forecast discharges in CMS as CSV file',required=True)
-    parser.add_argument('-s','--rating-curve',help='SRC JSON file',required=True)
-    parser.add_argument('-w','--cross-walk',help='Cross-walk table csv',required=True)
-    parser.add_argument('-u','--hucs',help='HUCs file to process at. Must match CRS of input rasters',required=False,default=None)
-    parser.add_argument('-l','--hucs-layerName',help='Layer name in HUCs file to use',required=False,default=None)
-    parser.add_argument('-n','--num-workers',help='Number of concurrent processes',required=False,default=1,type=int)
-    parser.add_argument('-i','--inundation-raster',help='Inundation Raster output. Only writes if designated.',required=False,default=None)
-    parser.add_argument('-p','--inundation-polygon',help='Inundation polygon output. Only writes if designated.',required=False,default=None)
-    parser.add_argument('-d','--depths',help='Depths raster output. Only writes if designated.',required=False,default=None)
-    parser.add_argument('-a','--aggregate',help='Aggregate outputs to VRT files',required=False,action='store_true')
-    parser.add_argument('-t','--current-huc',help='May deprecate soon, likely temporary. Pass current HUC code',required=True,default=None)
+    parser.add_argument('-u','--hucs',help='Batch mode only: HUCs file to process at. Must match CRS of input rasters',required=False,default=None)
+    parser.add_argument('-l','--hucs-layerName',help='Batch mode only. Layer name in HUCs file to use',required=False,default=None)
+    parser.add_argument('-n','--num-workers',help='Batch mode only. Number of concurrent processes',required=False,default=1,type=int)
+    parser.add_argument('-a','--aggregate',help='Batch mode only. Aggregate outputs to VRT files.',required=False,action='store_true')
+    parser.add_argument('-i','--inundation-raster',help='Inundation Raster output. Only writes if designated. Appends HUC code in batch mode.',required=False,default=None)
+    parser.add_argument('-p','--inundation-polygon',help='Inundation polygon output. Only writes if designated. Appends HUC code in batch mode',required=False,default=None)
+    parser.add_argument('-d','--depths',help='Depths raster output. Only writes if designated. Appends HUC code in batch mode',required=False,default=None)
+    parser.add_argument('-e','--current-huc',help='May deprecate soon, likely temporary. Pass current HUC code',required=True,default=None)
 
     # extract to dictionary
     args = vars(parser.parse_args())
