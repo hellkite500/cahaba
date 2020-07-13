@@ -136,7 +136,7 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     return stats_dictionary
 
 
-def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster=None):
+def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster=None, mask_values=None):
     """
     Produces contingency table from 2 rasters and returns it. Also exports an agreement raster classified as:
         0: True Negatives
@@ -162,6 +162,8 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
     benchmark_array = benchmark_src.read(1)
     predicted_src = rasterio.open(predicted_raster_path)
     predicted_array = predicted_src.read(1)
+    
+    predicted_array_raw = predicted_src.read(1)
 
     # WILL NOT STAY--JUST DEALING WITH DIFFERENT SHAPES OF INPUT DATA:
     benchmark_array = benchmark_array[:, :-1]
@@ -176,14 +178,19 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
     # Create agreement_array in memory.
     agreement_array = np.add(benchmark_array, 2*predicted_array)
     
+    # Mask agreement array according to mask catchments.
+    print("Masking...")
+    for value in mask_values:
+        agreement_array = np.where(np.absolute(predicted_array_raw) == int(value), 4, agreement_array)        
+
     # Mask out the NoData areas
-    agreement_array = np.where(agreement_array>3, 10, agreement_array)
+    agreement_array = np.where(agreement_array>4, 10, agreement_array)
     
     # Only write the agreement raster if user-specified.
     if agreement_raster != None:
         with rasterio.Env():
             profile = predicted_src.profile
-            profile.update(nodata=None)
+            profile.update(nodata=10)
             with rasterio.open(agreement_raster, 'w', **profile) as dst:
                 dst.write(agreement_array, 1)
 

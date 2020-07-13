@@ -55,7 +55,7 @@ def profile_test_case_archive(archive_to_check, return_interval):
     return archive_dictionary
 
 
-def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster=None, stats_csv=None, stats_json=None):
+def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster=None, stats_csv=None, stats_json=None, mask_values=None):
     """
     This function contains FIM-specific logic to prepare raster datasets for use in the generic get_contingency_table_from_binary_rasters() function.
     This function also calls the generic compute_stats_from_contingency_table() function and writes the results to CSV and/or JSON, depending on user input.
@@ -77,7 +77,7 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
     cell_area = t[0]
         
     # Get contingency table from two rasters.
-    contingency_table_dictionary = get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster)
+    contingency_table_dictionary = get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster, mask_values=mask_values)
     true_negatives = contingency_table_dictionary['true_negatives']
     false_negatives = contingency_table_dictionary['false_negatives']
     false_positives = contingency_table_dictionary['false_positives']
@@ -116,6 +116,11 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
 
 def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False):
     
+    # Get list of feature_ids_to_mask.
+    lake_feature_id_csv = r'/data/pre_inputs/lake_feature_id.csv'
+    
+    feature_id_data = pd.read_csv(lake_feature_id_csv, header=0)
+    feature_ids_to_mask = list(feature_id_data.ID)
 
     # Create paths to fim_run outputs for use in inundate().
     rem = os.path.join(fim_run_dir, 'rem_clipped_zeroed_masked.tif')
@@ -123,6 +128,20 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     current_huc = test_id.split('_')[0]
     hucs, hucs_layerName = os.path.join(INPUTS_DIR, 'wbd', 'WBD_National.gpkg'), 'WBDHU8'
     hydro_table = os.path.join(fim_run_dir, 'hydroTable.csv')
+    
+    # Crosswalk feature_ids to hydroids.
+    hydro_table_data = pd.read_csv(hydro_table, header=0)
+    ht_feature_id_list = list(hydro_table_data.feature_id)
+    ht_hydro_id_list = list(hydro_table_data.HydroID)
+    
+    crosswalk_dict = {}
+    for i in range(0, len(ht_feature_id_list)):
+        crosswalk_dict.update({str(ht_feature_id_list[i]): str(ht_hydro_id_list[i])})
+    
+    hydro_ids_to_mask = []
+    for feature_id in feature_ids_to_mask:
+        try: hydro_ids_to_mask.append((crosswalk_dict[str(feature_id)]))
+        except KeyError: pass
     
     return_interval_list = return_interval
     
@@ -136,7 +155,8 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
             os.makedirs(branch_test_case_dir)
         
         inundation_raster = os.path.join(branch_test_case_dir, 'inundation_extent.tif')
-            
+        depth_raster = os.path.join(branch_test_case_dir, 'depth_raster.tif')
+        
         # Construct path to validation raster and forecast file.
         benchmark_category = test_id.split('_')[1]
         benchmark_raster_path = os.path.join(TEST_CASES_DIR, test_id, 'validation_data', return_interval, benchmark_category + '_huc_' + current_huc + '_inundation_extent_' + return_interval + '.tif')
@@ -148,7 +168,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         print("Running inundation for " + return_interval + " for " + test_id + "...")
         inundate(
                  rem,catchments,forecast,hydro_table=hydro_table,hucs=hucs,hucs_layerName=hucs_layerName,
-                 num_workers=1,inundation_raster=inundation_raster,inundation_polygon=None,depths=None,
+                 num_workers=1,inundation_raster=inundation_raster,inundation_polygon=None,depths=depth_raster,
                  out_raster_profile=None,out_vector_profile=None,aggregate=False,
                  current_huc=current_huc,__rating_curve=None,__cross_walk=None
                 )
@@ -158,7 +178,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         # Define outputs for agreement_raster, stats_json, and stats_csv.
         print("Comparing predicted inundation to benchmark inundation...")
         agreement_raster, stats_json, stats_csv = os.path.join(branch_test_case_dir, 'agreement.tif'), os.path.join(branch_test_case_dir, 'stats.json'), os.path.join(branch_test_case_dir, 'stats.csv')
-        current_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster, stats_csv=stats_csv, stats_json=stats_json)
+        current_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster, stats_csv=stats_csv, stats_json=stats_json, mask_values=hydro_ids_to_mask)
         
         if compare_to_previous:
             # Compare to previous stats files that are available.    
@@ -215,5 +235,3 @@ if __name__ == '__main__':
         sys.exit()
     else:  
         run_alpha_test(**args)
-
-    
