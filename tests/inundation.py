@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 from numba import njit, typeof, typed, types
-from concurrent.futures import ThreadPoolExecutor,ProcessPoolExecutor,as_completed
+from concurrent.futures import ThreadPoolExecutor,as_completed
 from subprocess import run
 from os.path import splitext
 import rasterio
@@ -18,19 +18,18 @@ from rasterio.features import shapes,geometry_window,dataset_features
 from rasterio.windows import transform,Window
 from collections import OrderedDict
 import argparse
-import json
-
+from warnings import warn
 
 def inundate(
-             rem,catchments,forecast,hydro_table=None,hucs=None,hucs_layerName=None,
-             num_workers=1,inundation_raster=None,inundation_polygon=None,depths=None,
-             out_raster_profile=None,out_vector_profile=None,aggregate=False,
-             __rating_curve=None,__cross_walk=None
+             rem,catchments,hydro_table,forecast,hucs=None,hucs_layerName=None,
+             num_workers=1,aggregate=False,inundation_raster=None,inundation_polygon=None,
+             depths=None,out_raster_profile=None,out_vector_profile=None,quiet=False
             ):
     """
-    Run inundation on FIM 3.0 <= outputs at job-level scale or aggregated scale
+
+    Run inundation on FIM >=3.0 outputs at job-level scale or aggregated scale
     
-    Generate depths raster, inundation raster, and inundation polygon from FIM3.0 <= outputs. Can use the FIM 3.0 outputs at it's native HUC level or the aggregated products. Be sure to pass a HUCs file to process at HUC levels if passing aggregated products. 
+    Generate depths raster, inundation raster, and inundation polygon from FIM >=3.0 outputs. Can use the FIM 3.0 outputs at native HUC level or the aggregated products. Be sure to pass a HUCs file to process in batch mode if passing aggregated products. 
     
     Parameters
     ----------
@@ -38,20 +37,58 @@ def inundate(
         File path to or rasterio dataset reader of Relative Elevation Model raster. Must have the same CRS as catchments raster.
     catchments : str or rasterio.DatasetReader
         File path to or rasterio dataset reader of Catchments raster. Must have the same CRS as REM raster
-    TBC
-    
+    hydro_table : str or pandas.DataFrame
+        File path to hydro-table csv or Pandas DataFrame object with correct indices and columns.
+    forecast : str or pandas.DataFrame
+        File path to forecast csv or Pandas DataFrame with correct column names.
+    hucs : str or fiona.Collection, optional
+        Batch mode only. File path or fiona collection of vector polygons in HUC 4,6,or 8's to inundate on. Must have an attribute named as either "HUC4","HUC6", or "HUC8" with the associated values.
+    hucs_layerName : str, optional
+        Batch mode only. Layer name in hucs to use if multi-layer file is passed.
+    num_workers : int, optional
+        Batch mode only. Number of workers to use in batch mode. Must be 1 or greater.
+    aggregate : bool, optional
+        Batch mode only. Aggregates output rasters to VRT mosaic files and merges polygons to single GPKG file. Currently not functional. Raises warning and sets to false. On to-do list.
+    inundation_raster : str, optional
+        Path to optional inundation raster output. Appends HUC number if ran in batch mode.
+    inundation_polygon : str, optional
+        Path to optional inundation vector output. Only accepts GPKG right now. Appends HUC number if ran in batch mode.
+    depths : str, optional
+        Path to optional depths raster output. Appends HUC number if ran in batch mode.
+    out_raster_profile : str or dictionary, optional
+        Override the default raster profile for outputs. See Rasterio profile documentation for more information.
+    out_vector_profile : str or dictionary
+        Override the default kwargs passed to fiona.Collection including crs, driver, and schema.
+    quiet : bool, optional
+        Quiet output.
+
     Returns
     -------
     error_code : int
-        Zero for successful completion and non-zero for failure. (Untested)
+        Zero for successful completion.
+    
+    Raises
+    ------
+    TypeError
+        Wrong input data types
+    AssertionError
+        Wrong input data types
+
+    Warns
+    -----
+    warn
+        if aggregrate set to true, will revert to false.
 
     Notes
     -----
+    - Specifying a subset of the domain in rem or catchments to inundate on is achieved by the HUCs file or the forecast file. 
 
     Examples
     --------
-
+    >>> import inundation
+    >>> inundation.inundate(rem,catchments,hydro_table,forecast,inundation_raster)
     """
+    
     # check for num_workers
     num_workers = int(num_workers)
     assert num_workers >= 1, "Number of workers should be 1 or greater"
@@ -60,15 +97,14 @@ def inundate(
 
     # check that aggregate is only done for hucs mode
     aggregate = bool(aggregate)
+    if aggregate:
+        warn("Aggregate feature currently not working. Setting to false for now.")
     if hucs is None:
         assert (not aggregate), "Pass HUCs file if aggregation is desired"
 
-    # check for proper hydroTable and crosswalk/src input usage
-    if (hydro_table is None) & ((__rating_curve is None) | (__cross_walk is None)):
-        raise AssertionError("Pass hydroTable or rating_curve/cross_walk")
-    if (hydro_table is not None) & ((__rating_curve is not None) | (__cross_walk is not None)):
-        raise AssertionError("Pass hydroTable or rating_curve/cross_walk")
-    
+    # bool quiet
+    quiet = bool(quiet)
+
     # input rem
     if isinstance(rem,str): 
         rem = rasterio.open(rem)
@@ -84,7 +120,7 @@ def inundate(
         pass
     else:
         raise TypeError("Pass rasterio dataset or filepath for catchments")
-    
+
     # check for matching number of bands and single band only
     assert rem.count == catchments.count == 1, "REM and catchments rasters are required to be single band only"
 
@@ -118,7 +154,7 @@ def inundate(
     
     # make windows generator
     window_gen = __make_windows_generator(rem,catchments,catchmentStagesDict,inundation_raster,inundation_polygon,
-                                          depths,out_raster_profile,out_vector_profile,hucs=hucs,hucSet=hucSet)
+                                          depths,out_raster_profile,out_vector_profile,quiet,hucs=hucs,hucSet=hucSet)
 
     # start up thread pool
     executor = ThreadPoolExecutor(max_workers=num_workers)
@@ -131,16 +167,16 @@ def inundate(
         try:
             future.result()
         except Exception as exc:
-            print("Exception {} for {}".format(exc,results[future]))
+            __vprint("Exception {} for {}".format(exc,results[future]),not quiet)
         else:
-            print("... {} complete".format(results[future]))
+            __vprint("... {} complete".format(results[future]),not quiet)
             inundation_rasters += [future.result()[0]]
             depth_rasters += [future.result()[1]]
             inundation_polys += [future.result()[2]]
-    
+
     # power down pool
     executor.shutdown(wait=True)
-    
+
     # optional aggregation
     if (aggregate) & (hucs is not None):
         # inun grid vrt
@@ -160,13 +196,14 @@ def inundate(
 
     return(0)
 
+
 def __inundate_in_huc(rem_array,catchments_array,crs,window_transform,rem_profile,catchments_profile,hucCode,
                       catchmentStagesDict,depths,inundation_raster,inundation_polygon,
-                      out_raster_profile,out_vector_profile):
+                      out_raster_profile,out_vector_profile,quiet):
 
     # verbose print
     if hucCode is not None:
-        print("Mapping {} ...".format(hucCode))
+        __vprint("Inundating {} ...".format(hucCode),not quiet)
 
     # save desired profiles for outputs
     depths_profile = rem_profile
@@ -189,7 +226,6 @@ def __inundate_in_huc(rem_array,catchments_array,crs,window_transform,rem_profil
     # update transforms of outputs with window transform
     depths_profile.update(transform=window_transform)
     inundation_profile.update(transform=window_transform)
-
     # open output depths
     if isinstance(depths,str): 
         depths = __append_huc_code_to_file_name(depths,hucCode)
@@ -298,6 +334,7 @@ def __inundate_in_huc(rem_array,catchments_array,crs,window_transform,rem_profil
 
     return(ir_name,d_name,ip_name)
 
+
 @njit
 def __go_fast_mapping(rem,catchments,catchmentStagesDict,inundation,depths):
 
@@ -316,7 +353,7 @@ def __go_fast_mapping(rem,catchments,catchmentStagesDict,inundation,depths):
 
 
 def __make_windows_generator(rem,catchments,catchmentStagesDict,inundation_raster,inundation_polygon,
-                             depths,out_raster_profile,out_vector_profile,hucs=None,hucSet=None):
+                             depths,out_raster_profile,out_vector_profile,quiet,hucs=None,hucSet=None):
 
     if hucs is not None:
         
@@ -356,7 +393,7 @@ def __make_windows_generator(rem,catchments,catchmentStagesDict,inundation_raste
             yield (rem_array,catchments_array,rem.crs.wkt,
                    window_transform,rem.profile,catchments.profile,hucCode,
                    catchmentStagesDict,depths,inundation_raster,
-                   inundation_polygon,out_raster_profile,out_vector_profile)
+                   inundation_polygon,out_raster_profile,out_vector_profile,quiet)
 
     else:
         hucCode = None
@@ -365,7 +402,7 @@ def __make_windows_generator(rem,catchments,catchmentStagesDict,inundation_raste
         yield (rem.read(1),catchments.read(1),rem.crs.wkt,
                rem.transform,rem.profile,catchments.profile,hucCode,
                catchmentStagesDict,depths,inundation_raster,
-               inundation_polygon,out_raster_profile,out_vector_profile)
+               inundation_polygon,out_raster_profile,out_vector_profile,quiet)
 
 
 def __append_huc_code_to_file_name(fileName,hucCode):
@@ -405,7 +442,7 @@ def __subset_hydroTable_to_forecast(hydroTable,forecast):
     # join tables
     hydroTable = hydroTable.join(forecast,on=['feature_id'],how='inner')
     
-    # dictionary
+    # initialize dictionary
     catchmentStagesDict = typed.Dict.empty(types.int32,types.float64)
 
     # interpolate stages
@@ -429,7 +466,6 @@ def __vprint(message,verbose):
         print(message)
 
 
-
 if __name__ == '__main__':
 
     # parse arguments
@@ -441,10 +477,11 @@ if __name__ == '__main__':
     parser.add_argument('-u','--hucs',help='Batch mode only: HUCs file to process at. Must match CRS of input rasters',required=False,default=None)
     parser.add_argument('-l','--hucs-layerName',help='Batch mode only. Layer name in HUCs file to use',required=False,default=None)
     parser.add_argument('-n','--num-workers',help='Batch mode only. Number of concurrent processes',required=False,default=1,type=int)
-    parser.add_argument('-a','--aggregate',help='Batch mode only. Aggregate outputs to VRT files.',required=False,action='store_true')
+    parser.add_argument('-a','--aggregate',help='Batch mode only. Aggregate outputs to VRT files. Currently, raises warning and sets to false if used.',required=False,action='store_true')
     parser.add_argument('-i','--inundation-raster',help='Inundation Raster output. Only writes if designated. Appends HUC code in batch mode.',required=False,default=None)
     parser.add_argument('-p','--inundation-polygon',help='Inundation polygon output. Only writes if designated. Appends HUC code in batch mode.',required=False,default=None)
     parser.add_argument('-d','--depths',help='Depths raster output. Only writes if designated. Appends HUC code in batch mode.',required=False,default=None)
+    parser.add_argument('-q','--quiet',help='Quiet terminal output',required=False,default=False,action='store_true')
 
     # extract to dictionary
     args = vars(parser.parse_args())
