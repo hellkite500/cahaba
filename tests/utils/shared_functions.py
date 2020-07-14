@@ -177,9 +177,7 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
 
     # Create agreement_array in memory.
     agreement_array = np.add(benchmark_array, 2*predicted_array)
-    
-    print(mask_values)
-    
+        
     # Mask agreement array according to mask catchments.
     print("Masking...")
     for value in mask_values:
