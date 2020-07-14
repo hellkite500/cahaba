@@ -134,15 +134,26 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     ht_feature_id_list = list(hydro_table_data.feature_id)
     ht_hydro_id_list = list(hydro_table_data.HydroID)
     
-    crosswalk_dict = {}
-    for i in range(0, len(ht_feature_id_list)):
-        crosswalk_dict.update({str(ht_feature_id_list[i]): str(ht_hydro_id_list[i])})
-    
+    # Remove duplicates
+    reduced_ht_feature_id_list = []
+    reduced_ht_hydro_id_list = []
     hydro_ids_to_mask = []
-    for feature_id in feature_ids_to_mask:
-        try: hydro_ids_to_mask.append((crosswalk_dict[str(feature_id)]))
-        except KeyError: pass
-    
+    for i in range(0, len(ht_hydro_id_list)):
+        if ht_hydro_id_list[i] not in reduced_ht_hydro_id_list:
+            reduced_ht_hydro_id_list.append(ht_hydro_id_list[i])
+            reduced_ht_feature_id_list.append(ht_feature_id_list[i])
+            
+    print("Matching feature_ids...")
+    for i in range(0, len(reduced_ht_feature_id_list)):
+        ht_feature_id = reduced_ht_feature_id_list[i]
+        ht_hydro_id = reduced_ht_hydro_id_list[i]
+        
+        if ht_feature_id in feature_ids_to_mask:
+            hydro_ids_to_mask.append(ht_hydro_id)
+
+    print(hydro_ids_to_mask)
+    print(len(hydro_ids_to_mask))
+            
     return_interval_list = return_interval
     
     if type(return_interval_list) != list:
@@ -155,7 +166,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
             os.makedirs(branch_test_case_dir)
         
         inundation_raster = os.path.join(branch_test_case_dir, 'inundation_extent.tif')
-        depth_raster = os.path.join(branch_test_case_dir, 'depth_raster.tif')
+#        depth_raster = os.path.join(branch_test_case_dir, 'depth_raster.tif')
         
         # Construct path to validation raster and forecast file.
         benchmark_category = test_id.split('_')[1]
@@ -168,7 +179,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         print("Running inundation for " + return_interval + " for " + test_id + "...")
         inundate(
                  rem,catchments,forecast,hydro_table=hydro_table,hucs=hucs,hucs_layerName=hucs_layerName,
-                 num_workers=1,inundation_raster=inundation_raster,inundation_polygon=None,depths=depth_raster,
+                 num_workers=1,inundation_raster=inundation_raster,inundation_polygon=None,depths=None,
                  out_raster_profile=None,out_vector_profile=None,aggregate=False,
                  current_huc=current_huc,__rating_curve=None,__cross_walk=None
                 )
