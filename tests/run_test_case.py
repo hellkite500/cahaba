@@ -217,6 +217,8 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                                                                     
                                                                     )
       
+        print(current_dictionary)
+        
         if compare_to_previous:
             # Compare to previous stats files that are available.    
             archive_to_check = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions')

@@ -168,7 +168,8 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
 
     # WILL NOT STAY--JUST DEALING WITH DIFFERENT SHAPES OF INPUT DATA:
     benchmark_array = benchmark_array[:, :-1]
-    
+    benchmark_array = np.where(predicted_array==predicted_src.nodata, 10, benchmark_array)
+            
     # Ensure zeros and ones for binary comparison. Assume that positive values mean flooding and 0 or negative values mean dry. 
     predicted_array = np.where(predicted_array==predicted_src.nodata, 10, predicted_array)  # Reclassify NoData to 10
     predicted_array = np.where(predicted_array<0, 0, predicted_array)
@@ -178,11 +179,12 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
 
     # Create agreement_array in memory.
     agreement_array = np.add(benchmark_array, 2*predicted_array)
-        
+    
     # Mask agreement array according to mask catchments.
     print("Masking...")
     for value in mask_values:
-        agreement_array = np.where(np.absolute(predicted_array_raw) == int(value), 4, agreement_array)        
+        agreement_array = np.where(np.absolute(predicted_array_raw) == int(value), 4, agreement_array)
+        
     agreement_array = np.where(agreement_array>4, 10, agreement_array)
     
     del benchmark_src, benchmark_array, predicted_array, predicted_array_raw
@@ -222,7 +224,6 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
                 profile.update(nodata=10)
                 with rasterio.open(layer_agreement_raster, 'w', **profile) as dst:
                     dst.write(layer_agreement_array, 1)
-    
             
             # Store summed pixel counts in dictionary.
             contingency_table_dictionary.update({layer_name:{'true_negatives': int((layer_agreement_array == 0).sum()),
