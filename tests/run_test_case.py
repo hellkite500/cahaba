@@ -11,11 +11,13 @@ from utils.shared_functions import get_contingency_table_from_binary_rasters, co
 
 TEST_CASES_DIR = r'/data/test_cases/'  # Will update.
 INPUTS_DIR = r'/data/inputs'
+SUMMARY_STATS = ['csi', 'pod', 'far', 'true_negatives', 'false_negatives', 'true_positives', 'false_positives', 'percent_correct', 'bias', 'equitable_threat_score']
+
 
 from inundation import inundate
 
 
-def profile_test_case_archive(archive_to_check, return_interval):
+def profile_test_case_archive(archive_to_check, return_interval, stats_mode):
     """
     This function searches multiple directories and locates previously produced performance statistics.
     
@@ -41,9 +43,9 @@ def profile_test_case_archive(archive_to_check, return_interval):
                                              'stats_csv': None,
                                              'stats_json': None}})
         # Find stats files and raster files and add to dictionary.
-        agreement_raster = os.path.join(version_return_interval_dir, 'agreement.tif')
-        stats_csv = os.path.join(version_return_interval_dir, 'stats.csv')
-        stats_json = os.path.join(version_return_interval_dir, 'stats.json')
+        agreement_raster = os.path.join(version_return_interval_dir, stats_mode + '_agreement.tif')
+        stats_csv = os.path.join(version_return_interval_dir, stats_mode + '_stats.csv')
+        stats_json = os.path.join(version_return_interval_dir, stats_mode + '_stats.json')
         
         if os.path.exists(agreement_raster):
             archive_dictionary[version]['agreement_raster'] = agreement_raster
@@ -88,6 +90,8 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
     # Get contingency table from two rasters.
     contingency_table_dictionary = get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster, mask_values=mask_values, additional_layers_dict=additional_layers_dict)
     
+    stats_dictionary = {}
+    
     for stats_mode in contingency_table_dictionary:
         print("Running " + stats_mode + "...")
         true_negatives = contingency_table_dictionary[stats_mode]['true_negatives']
@@ -96,23 +100,25 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
         true_positives = contingency_table_dictionary[stats_mode]['true_positives']
         
         # Produce statistics from continency table and assign to dictionary. cell_area argument optional (defaults to None). 
-        stats_dictionary = compute_stats_from_contingency_table(true_negatives, false_negatives, false_positives, true_positives, cell_area)
-    
-        # Write the stats_dictionary to the stats_csv.
+        mode_stats_dictionary = compute_stats_from_contingency_table(true_negatives, false_negatives, false_positives, true_positives, cell_area)
+        
+        # Write the mode_stats_dictionary to the stats_csv.
         if stats_csv != None:
             stats_csv = os.path.join(os.path.split(stats_csv)[0], stats_mode + '_stats.csv')
-            df = pd.DataFrame.from_dict(stats_dictionary, orient="index", columns=['value'])
+            df = pd.DataFrame.from_dict(mode_stats_dictionary, orient="index", columns=['value'])
             df.to_csv(stats_csv)
             
-        # Write the stats_dictionary to the stats_json.
+        # Write the mode_stats_dictionary to the stats_json.
         if stats_json != None:
             stats_json = os.path.join(os.path.split(stats_csv)[0], stats_mode + '_stats.json')
             with open(stats_json, "w") as outfile:  
-                json.dump(stats_dictionary, outfile) 
+                json.dump(mode_stats_dictionary, outfile) 
     
+        stats_dictionary.update({stats_mode: mode_stats_dictionary})
+        
+        
     # Write summary CSV for humans.
-    
-    
+        
     return stats_dictionary
     
 
@@ -206,49 +212,84 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
 
         agreement_raster, stats_json, stats_csv = os.path.join(branch_test_case_dir, 'total_agreement.tif'), os.path.join(branch_test_case_dir, 'stats.json'), os.path.join(branch_test_case_dir, 'stats.csv')
             
-        current_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, 
-                                                                    benchmark_raster_path, 
-                                                                    agreement_raster, 
-                                                                    stats_csv=stats_csv, 
-                                                                    stats_json=stats_json, 
-                                                                    mask_values=hydro_ids_to_mask,
-                                                                    stats_modes_list=stats_modes_list,
-                                                                    test_id=test_id,
-                                                                    
-                                                                    )
-      
-        print(current_dictionary)
+        test_version_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, 
+                                                                         benchmark_raster_path, 
+                                                                         agreement_raster, 
+                                                                         stats_csv=stats_csv, 
+                                                                         stats_json=stats_json, 
+                                                                         mask_values=hydro_ids_to_mask,
+                                                                         stats_modes_list=stats_modes_list,
+                                                                         test_id=test_id,
+                                                                         )
+        
+        
         
         if compare_to_previous:
+            print("Writing regression report...")
+            text_block = []
             # Compare to previous stats files that are available.    
             archive_to_check = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions')
-            archive_dictionary = profile_test_case_archive(archive_to_check, return_interval)
-            regression_dict = {}
-            for previous_version, paths in archive_dictionary.items():
-                previous_version_stats_json_path = paths['stats_json']
-                previous_version_stats_dict = json.load(open(previous_version_stats_json_path))
-                regression_dict.update({previous_version: previous_version_stats_dict})
+            for stats_mode in stats_modes_list:
+                archive_dictionary = profile_test_case_archive(archive_to_check, return_interval, stats_mode)
                 
-            regression_dict.update({branch_name: current_dictionary})
-            # Parse values from dictionary for writing. Not the most Pythonic, but works fast.
-            version_list = list(regression_dict.keys())
-            stat_names_list = list(regression_dict[version_list[0]].keys())
-            lines = []
-            for stat in stat_names_list:
-                stat_line = []
-                for version in version_list:
-                    stat_line.append(regression_dict[version][stat])
-                stat_line.insert(0, stat)
-                lines.append(stat_line)
-            version_list.insert(0, " ")
+                # Create header for section.
+                header = [stats_mode]
+                for previous_version, paths in archive_dictionary.items():
+                    header.append(previous_version)
+                header.append(branch_name)
+                text_block.append(header)
+                
+                # Loop through stats in SUMMARY_STATS for left.
+                for stat in SUMMARY_STATS:
+                    stat_line = [stat]
+                    for previous_version, paths in archive_dictionary.items():
+                        # Load stats for previous version.
+                        previous_version_stats_json_path = paths['stats_json']
+                        previous_version_stats_dict = json.load(open(previous_version_stats_json_path))
+                        
+                        # Append stat for the version to state_line.
+                        stat_line.append(previous_version_stats_dict[stat])
+                        
+                    # Append stat for the current version to stat_line.
+                    stat_line.append(test_version_dictionary[stats_mode][stat])
+
+                    text_block.append(stat_line)
+                    
+                text_block.append([" "])
             
-            # Write test results.
             regression_report_csv = os.path.join(branch_test_case_dir, 'regression_report.csv')
             with open(regression_report_csv, 'w', newline='') as csvfile:
                 csv_writer = csv.writer(csvfile)
-                csv_writer.writerow(version_list)
-                csv_writer.writerows(lines)
-              
+                csv_writer.writerows(text_block)
+             
+            print()
+            print("*************************************************************************")
+            print("*************************************************************************")
+            
+            stats_mode = stats_modes_list[0]
+            for line in text_block:
+                first_item = line[0]
+                if first_item in stats_modes_list:
+                    if first_item != stats_mode:  # Update the stats_mode and print a separator. 
+                        print("-------------------------------------------------------------------------")
+                    stats_mode = first_item
+                elif first_item in SUMMARY_STATS:
+                    current_version = float(line[-1])
+                    last_version = float(line[-2])
+                    difference = round(current_version - last_version, 3)
+                    if difference != 0:
+                        percent_change = round((difference / last_version)*100,1)
+                        
+                        print(stats_mode.upper() + ", " + return_interval.upper() + ": " + first_item.upper() + " -- changed by " + str(difference) + "(" + str(current_version) + " vs " + str(previous_version) + ") | " + str(percent_change) + "% |")
+                    else:
+                        print(stats_mode.upper() + ", " + return_interval.upper() + ": " + first_item.upper() + " -- unchanged from the previous version" + "(" + str(current_version) + " vs " + str(previous_version) + ")")
+                        
+            
+            print()
+            print("*************************************************************************")
+            print("*************************************************************************")
+            print()
+                            
         print(" ")
         print("Completed. Stats outputs for " + test_id + " are in " + branch_test_case_dir)
         print(" ")
