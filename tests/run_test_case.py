@@ -55,7 +55,7 @@ def profile_test_case_archive(archive_to_check, return_interval):
     return archive_dictionary
 
 
-def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster=None, stats_csv=None, stats_json=None, mask_values=None):
+def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster=None, stats_csv=None, stats_json=None, mask_values=None, stats_modes_list=['total_area'], test_id=''):
     """
     This function contains FIM-specific logic to prepare raster datasets for use in the generic get_contingency_table_from_binary_rasters() function.
     This function also calls the generic compute_stats_from_contingency_table() function and writes the results to CSV and/or JSON, depending on user input.
@@ -76,24 +76,37 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
     t = raster.transform
     cell_area = t[0]
         
-    # Get contingency table from two rasters.
-    contingency_table_dictionary = get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster, mask_values=mask_values)
-    true_negatives = contingency_table_dictionary['true_negatives']
-    false_negatives = contingency_table_dictionary['false_negatives']
-    false_positives = contingency_table_dictionary['false_positives']
-    true_positives = contingency_table_dictionary['true_positives']
+    # Create path to additional_layer. Could put conditionals here to create path according to some version. Simply use stats_mode for now. Must be raster.
+    if len(stats_modes_list) > 1:
+        additional_layers_dict = {}
+        for stats_mode in stats_modes_list:
+            if stats_mode != 'total_area':
+                additional_layer_path = os.path.join(TEST_CASES_DIR, test_id, 'additional_layers', stats_mode, stats_mode + '.tif')
+                additional_layers_dict.update({stats_mode: additional_layer_path})
     
-    # Produce statistics from continency table and assign to dictionary. cell_area argument optional (defaults to None). 
-    stats_dictionary = compute_stats_from_contingency_table(true_negatives, false_negatives, false_positives, true_positives, cell_area)
-
-    # Write the stats_dictionary to the stats_csv.
-    if stats_csv != None:
-        df = pd.DataFrame.from_dict(stats_dictionary, orient="index", columns=['value'])
-        df.to_csv(stats_csv)
+    # Get contingency table from two rasters.
+    contingency_table_dictionary = get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster, mask_values=mask_values, additional_layers_dict=additional_layers_dict)
+    
+    for stats_mode in contingency_table_dictionary:
+        true_negatives = contingency_table_dictionary[stats_mode]['true_negatives']
+        false_negatives = contingency_table_dictionary[stats_mode]['false_negatives']
+        false_positives = contingency_table_dictionary[stats_mode]['false_positives']
+        true_positives = contingency_table_dictionary[stats_mode]['true_positives']
         
-    if stats_json != None:
-        with open(stats_json, "w") as outfile:  
-            json.dump(stats_dictionary, outfile) 
+        # Produce statistics from continency table and assign to dictionary. cell_area argument optional (defaults to None). 
+        stats_dictionary = compute_stats_from_contingency_table(true_negatives, false_negatives, false_positives, true_positives, cell_area)
+    
+        # Write the stats_dictionary to the stats_csv.
+        if stats_csv != None:
+            stats_csv = os.path.join(os.path.split(stats_csv)[0], stats_mode + '_stats.csv')
+            df = pd.DataFrame.from_dict(stats_dictionary, orient="index", columns=['value'])
+            df.to_csv(stats_csv)
+            
+        # Write the stats_dictionary to the stats_json.
+        if stats_json != None:
+            stats_json = os.path.join(os.path.split(stats_csv)[0], stats_mode + '_stats.json')
+            with open(stats_json, "w") as outfile:  
+                json.dump(stats_dictionary, outfile) 
     
     return stats_dictionary
     
@@ -112,12 +125,15 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
         difference_dict.update({stat + '_diff': stat_value_diff})
     
     return difference_dict
+    
 
-
-def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False):
+def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False):
+    
+    stats_modes_list = ['total_area']
+    if run_structure_stats: stats_modes_list.append('structures')
     
     # Get list of feature_ids_to_mask.
-    lake_feature_id_csv = r'/data/pre_inputs/lake_feature_id.csv'
+    lake_feature_id_csv = r'/data/pre_inputs/lake_feature_id.csv'  # This will be replaced by hydroTable
     
     feature_id_data = pd.read_csv(lake_feature_id_csv, header=0)
     feature_ids_to_mask = list(feature_id_data.ID)
@@ -134,45 +150,39 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     ht_feature_id_list = list(hydro_table_data.feature_id)
     ht_hydro_id_list = list(hydro_table_data.HydroID)
     
-    # Remove duplicates
-    reduced_ht_feature_id_list = []
-    reduced_ht_hydro_id_list = []
-    hydro_ids_to_mask = []
+    # Remove duplicates and create list of hydro_ids to use as waterbody mask.
+    reduced_ht_feature_id_list, reduced_ht_hydro_id_list, hydro_ids_to_mask = [], [], []
+
     for i in range(0, len(ht_hydro_id_list)):
         if ht_hydro_id_list[i] not in reduced_ht_hydro_id_list:
             reduced_ht_hydro_id_list.append(ht_hydro_id_list[i])
             reduced_ht_feature_id_list.append(ht_feature_id_list[i])
-            
     print("Matching feature_ids...")
     for i in range(0, len(reduced_ht_feature_id_list)):
         ht_feature_id = reduced_ht_feature_id_list[i]
         ht_hydro_id = reduced_ht_hydro_id_list[i]
-        
         if ht_feature_id in feature_ids_to_mask:
             hydro_ids_to_mask.append(ht_hydro_id)
-
-    print(hydro_ids_to_mask)
-    print(len(hydro_ids_to_mask))
             
+    # Check if return interval is list of return intervals or single value.
     return_interval_list = return_interval
-    
     if type(return_interval_list) != list:
         return_interval_list = [return_interval_list]
+        
     for return_interval in return_interval_list:
-    
+        # Construct path to validation raster and forecast file.
+        benchmark_category = test_id.split('_')[1]
+        benchmark_raster_path = os.path.join(TEST_CASES_DIR, test_id, 'validation_data', return_interval, benchmark_category + '_huc_' + current_huc + '_inundation_extent_' + return_interval + '.tif')
+        if not os.path.exists(benchmark_raster_path):  # Skip loop instance if the benchmark raster doesn't exist.
+            continue
+        
         # Construct paths to development test results if not existent.
         branch_test_case_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch_name, return_interval)
         if not os.path.exists(branch_test_case_dir):
             os.makedirs(branch_test_case_dir)
         
+        # Define paths to inundation_raster and forecast file.
         inundation_raster = os.path.join(branch_test_case_dir, 'inundation_extent.tif')
-#        depth_raster = os.path.join(branch_test_case_dir, 'depth_raster.tif')
-        
-        # Construct path to validation raster and forecast file.
-        benchmark_category = test_id.split('_')[1]
-        benchmark_raster_path = os.path.join(TEST_CASES_DIR, test_id, 'validation_data', return_interval, benchmark_category + '_huc_' + current_huc + '_inundation_extent_' + return_interval + '.tif')
-        if not os.path.exists(benchmark_raster_path):
-            continue
         forecast = os.path.join(TEST_CASES_DIR, test_id, 'validation_data', return_interval, benchmark_category + '_huc_' + current_huc + '_flows_' + return_interval + '.csv')
     
         # Run inundate.
@@ -188,9 +198,22 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     
         # Define outputs for agreement_raster, stats_json, and stats_csv.
         print("Comparing predicted inundation to benchmark inundation...")
-        agreement_raster, stats_json, stats_csv = os.path.join(branch_test_case_dir, 'agreement.tif'), os.path.join(branch_test_case_dir, 'stats.json'), os.path.join(branch_test_case_dir, 'stats.csv')
-        current_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster, stats_csv=stats_csv, stats_json=stats_json, mask_values=hydro_ids_to_mask)
-        
+
+        for stats_mode in stats_modes_list:
+            agreement_raster, stats_json, stats_csv = os.path.join(branch_test_case_dir, 'total_agreement.tif'), os.path.join(branch_test_case_dir, 'stats.json'), os.path.join(branch_test_case_dir, 'stats.csv')
+            
+            
+        current_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, 
+                                                                    benchmark_raster_path, 
+                                                                    agreement_raster, 
+                                                                    stats_csv=stats_csv, 
+                                                                    stats_json=stats_json, 
+                                                                    mask_values=hydro_ids_to_mask,
+                                                                    stats_modes_list=stats_modes_list,
+                                                                    test_id=test_id,
+                                                                    
+                                                                    )
+      
         if compare_to_previous:
             # Compare to previous stats files that are available.    
             archive_to_check = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions')
@@ -235,6 +258,7 @@ if __name__ == '__main__':
     parser.add_argument('-t','--test-id',help='The test_id to use. Format as: HUC_BENCHMARKTYPE, e.g. 12345678_ble.',required=True,default="")
     parser.add_argument('-y', '--return-interval',help='The return interval to check. Options include: 100yr, 500yr',required=False,default=['10yr', '100yr', '500yr'])
     parser.add_argument('-c', '--compare-to-previous', help='Compare to previous versions of HAND.', required=False,action='store_true')
+    parser.add_argument('-s', '--run-structure-stats', help='Create contingency stats at structures.', required=False,action='store_true')
     
     # Extract to dictionary and assign to variables.
     args = vars(parser.parse_args())
@@ -246,3 +270,4 @@ if __name__ == '__main__':
         sys.exit()
     else:  
         run_alpha_test(**args)
+#        run_beta_test(**args)

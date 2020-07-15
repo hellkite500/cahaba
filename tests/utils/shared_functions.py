@@ -136,7 +136,7 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     return stats_dictionary
 
 
-def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster=None, mask_values=None):
+def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster=None, mask_values=None, additional_layers_dict={}):
     """
     Produces contingency table from 2 rasters and returns it. Also exports an agreement raster classified as:
         0: True Negatives
@@ -156,6 +156,7 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
     
     import rasterio
     import numpy as np
+    import os
         
     # Load rasters.
     benchmark_src = rasterio.open(benchmark_raster_path)    
@@ -182,9 +183,11 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
     print("Masking...")
     for value in mask_values:
         agreement_array = np.where(np.absolute(predicted_array_raw) == int(value), 4, agreement_array)        
-
-    # Mask out the NoData areas
     agreement_array = np.where(agreement_array>4, 10, agreement_array)
+    
+    del benchmark_src, benchmark_array, predicted_array, predicted_array_raw
+
+    contingency_table_dictionary = {}
     
     # Only write the agreement raster if user-specified.
     if agreement_raster != None:
@@ -193,13 +196,41 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
             profile.update(nodata=10)
             with rasterio.open(agreement_raster, 'w', **profile) as dst:
                 dst.write(agreement_array, 1)
-
+                          
     # Store summed pixel counts in dictionary.
-    contingency_table_dictionary = { 'true_negatives': int((agreement_array == 0).sum()),
-                                     'false_negatives': int((agreement_array == 1).sum()),
-                                     'false_positives': int((agreement_array == 2).sum()),
-                                     'true_positives': int((agreement_array == 3).sum())
-                                    }                                       
+    contingency_table_dictionary.update({'total_area':{'true_negatives': int((agreement_array == 0).sum()),
+                                                      'false_negatives': int((agreement_array == 1).sum()),
+                                                      'false_positives': int((agreement_array == 2).sum()),
+                                                      'true_positives': int((agreement_array == 3).sum())
+                                                      }})                               
+    
+    # Parse through dictionary of other layers and create contingency table metrics for the desired area. Layer must be raster with same shape as agreement_raster.
+    if additional_layers_dict != {}:
+        for layer_name in additional_layers_dict:
+            layer_path = additional_layers_dict[layer_name]
+            layer_src = rasterio.open(layer_path)
+            layer_array = layer_src.read(1)
+            layer_array = layer_array[:, :-1]  # TEMPORARY UNTIL SHAPE IS FIXED BY GDAL UPGRADE
+            
+            # Omit all areas that spatially disagree with the layer_array.
+            layer_agreement_array = np.where(layer_array>0, agreement_array, 10)
+            
+            # Write the layer_agreement_raster.
+            layer_agreement_raster = os.path.join(os.path.split(agreement_raster)[0], layer_name + '_agreement.tif')
+            with rasterio.Env():
+                profile = predicted_src.profile
+                profile.update(nodata=10)
+                with rasterio.open(layer_agreement_raster, 'w', **profile) as dst:
+                    dst.write(layer_agreement_array, 1)
+    
+            
+            # Store summed pixel counts in dictionary.
+            contingency_table_dictionary.update({layer_name:{'true_negatives': int((layer_agreement_array == 0).sum()),
+                                                             'false_negatives': int((layer_agreement_array == 1).sum()),
+                                                             'false_positives': int((layer_agreement_array == 2).sum()),
+                                                             'true_positives': int((layer_agreement_array == 3).sum())
+                                                              }})
+            del layer_agreement_array
 
     return contingency_table_dictionary
     
