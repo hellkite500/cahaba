@@ -76,6 +76,7 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
     t = raster.transform
     cell_area = t[0]
         
+    additional_layers_dict = {}
     # Create path to additional_layer. Could put conditionals here to create path according to some version. Simply use stats_mode for now. Must be raster.
     if len(stats_modes_list) > 1:
         additional_layers_dict = {}
@@ -85,9 +86,10 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
                 additional_layers_dict.update({stats_mode: additional_layer_path})
     
     # Get contingency table from two rasters.
-    contingency_table_dictionary = get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster, mask_values=mask_values, additional_layers_dict={})
+    contingency_table_dictionary = get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster, mask_values=mask_values, additional_layers_dict=additional_layers_dict)
     
     for stats_mode in contingency_table_dictionary:
+        print("Running " + stats_mode + "...")
         true_negatives = contingency_table_dictionary[stats_mode]['true_negatives']
         false_negatives = contingency_table_dictionary[stats_mode]['false_negatives']
         false_positives = contingency_table_dictionary[stats_mode]['false_positives']
@@ -107,6 +109,9 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
             stats_json = os.path.join(os.path.split(stats_csv)[0], stats_mode + '_stats.json')
             with open(stats_json, "w") as outfile:  
                 json.dump(stats_dictionary, outfile) 
+    
+    # Write summary CSV for humans.
+    
     
     return stats_dictionary
     
@@ -128,7 +133,7 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
     
 
 def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False):
-    
+        
     stats_modes_list = ['total_area']
     if run_structure_stats: stats_modes_list.append('structures')
     
@@ -199,9 +204,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         # Define outputs for agreement_raster, stats_json, and stats_csv.
         print("Comparing predicted inundation to benchmark inundation...")
 
-        for stats_mode in stats_modes_list:
-            agreement_raster, stats_json, stats_csv = os.path.join(branch_test_case_dir, 'total_agreement.tif'), os.path.join(branch_test_case_dir, 'stats.json'), os.path.join(branch_test_case_dir, 'stats.csv')
-            
+        agreement_raster, stats_json, stats_csv = os.path.join(branch_test_case_dir, 'total_agreement.tif'), os.path.join(branch_test_case_dir, 'stats.json'), os.path.join(branch_test_case_dir, 'stats.csv')
             
         current_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, 
                                                                     benchmark_raster_path, 
@@ -270,4 +273,3 @@ if __name__ == '__main__':
         sys.exit()
     else:  
         run_alpha_test(**args)
-#        run_beta_test(**args)
