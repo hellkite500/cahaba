@@ -97,10 +97,10 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     Bal_ACC = np.mean([TPR,TNR])
     F1_score = (2*true_positives) / (2*true_positives + false_positives + false_negatives)
 
-    stats_dictionary = {'true_negatives': true_negatives,
-                        'false_negatives': false_negatives,
-                        'true_positives': true_positives,
-                        'false_positives': false_positives,
+    stats_dictionary = {'true_negatives': int(true_negatives),
+                        'false_negatives': int(false_negatives),
+                        'true_positives': int(true_positives),
+                        'false_positives': int(false_positives),
                         'percent_correct': round(percent_correct, 3),
                         'pod': round(pod, 3),
                         'far': round(far, 3),

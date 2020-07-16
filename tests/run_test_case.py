@@ -204,7 +204,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                  out_raster_profile=None,out_vector_profile=None,aggregate=False,
                  current_huc=current_huc,__rating_curve=None,__cross_walk=None
                 )
-    
+   
         predicted_raster_path = os.path.join(os.path.split(inundation_raster)[0], os.path.split(inundation_raster)[1].replace('.tif', '_' + current_huc + '.tif'))  # The inundate adds the huc to the name so I account for that here.
     
         # Define outputs for agreement_raster, stats_json, and stats_csv.
@@ -221,9 +221,6 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                                                                          stats_modes_list=stats_modes_list,
                                                                          test_id=test_id,
                                                                          )
-        
-        
-        
         if compare_to_previous:
             print("Writing regression report...")
             text_block = []
@@ -264,29 +261,42 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
              
             print()
             print("*************************************************************************")
-            print("*************************************************************************")
+            ENDC = '\033[m'
+            TGREEN = '\033[32;1m'
+            TRED = '\033[31;1m'
+            TWHITE = '\033[37m'
+            WHITE_BOLD = '\033[37;1m'
             
             stats_mode = stats_modes_list[0]
+            
             for line in text_block:
                 first_item = line[0]
                 if first_item in stats_modes_list:
                     if first_item != stats_mode:  # Update the stats_mode and print a separator. 
+                        print()
+                        print()
                         print("-------------------------------------------------------------------------")
+                    print()
                     stats_mode = first_item
+                    print(WHITE_BOLD + stats_mode.upper().replace('_', ' ') + ": " + return_interval.upper(), ENDC)
+                    print()
+                
                 elif first_item in SUMMARY_STATS:
-                    current_version = float(line[-1])
-                    last_version = float(line[-2])
+                    stat_name = first_item.upper().center(len(max(SUMMARY_STATS, key=len))).replace('_', ' ')
+                    current_version = round((line[-1]), 3)
+                    last_version = round((line[-2]), 3)
                     difference = round(current_version - last_version, 3)
-                    if difference != 0:
-                        percent_change = round((difference / last_version)*100,1)
-                        
-                        print(stats_mode.upper() + ", " + return_interval.upper() + ": " + first_item.upper() + " -- changed by " + str(difference) + "(" + str(current_version) + " vs " + str(previous_version) + ") | " + str(percent_change) + "% |")
-                    else:
-                        print(stats_mode.upper() + ", " + return_interval.upper() + ": " + first_item.upper() + " -- unchanged from the previous version" + "(" + str(current_version) + " vs " + str(previous_version) + ")")
-                        
-            
+                    if difference > 0:
+                        symbol, color = '+', TGREEN
+                    if difference < 0: 
+                        symbol, color = '-', TRED
+                    if difference == 0 : 
+                        symbol, color = '+', TWHITE
+                    percent_change = round((difference / last_version)*100,1)
+
+                    print(stat_name + "  " + color + (symbol + " " + str(abs(percent_change)) + " %"), ENDC + " |  " + color + (symbol + " " + str(abs(difference)).center(5)), ENDC + "  (" + str(current_version) + " vs " + str(last_version) + ")")
+        
             print()
-            print("*************************************************************************")
             print("*************************************************************************")
             print()
                             
