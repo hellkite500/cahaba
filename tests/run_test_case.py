@@ -221,6 +221,78 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                                                                          stats_modes_list=stats_modes_list,
                                                                          test_id=test_id,
                                                                          )
+#        from pprint import pprint
+#        pprint(test_version_dictionary)
+        
+#        test_version_dictionary = {'structures': {'ACC': 0.9484586431653356,
+#                'Bal_ACC': 0.7097991910302027,
+#                'F1_score': 0.3877159309021113,
+#                'FN_perc': 1.9737446066281097,
+#                'FP_perc': 3.1803910768383368,
+#                'MCC': 0.3654973953029118,
+#                'NPV': 0.9792647172286089,
+#                'PPV': 0.3391072109881725,
+#                'TNR': 0.9670064684235788,
+#                'TN_perc': 93.21399063618838,
+#                'TPR': 0.45259191363682655,
+#                'TP_perc': 1.6318736803451757,
+#                'bias': 1.335,
+#                'csi': 0.24,
+#                'equitable_threat_score': 0.221,
+#                'false_negatives': 5375,
+#                'false_positives': 8661,
+#                'far': 0.661,
+#                'obsNegative_area': 2625060.0,
+#                'obsNegative_perc': 0.9639438171302671,
+#                'obsPositive_area': 98190.0,
+#                'obsPositive_perc': 0.036056182869732854,
+#                'percent_correct': 0.948,
+#                'pod': 0.453,
+#                'positiveDiff_area': 32860.0,
+#                'positiveDiff_perc': 0.012066464702102271,
+#                'predNegative_area': 2592200.0,
+#                'predNegative_perc': 0.9518773524281648,
+#                'predPositive_area': 131050.0,
+#                'predPositive_perc': 0.048122647571835125,
+#                'prevalence': 0.036056182869732854,
+#                'total_area': 2723250.0,
+#                'true_negatives': 253845,
+#                'true_positives': 4444},
+# 'total_area': {'ACC': 0.9099980914174687,
+#                'Bal_ACC': 0.8236399271651511,
+#                'F1_score': 0.7475766023583176,
+#                'FN_perc': 6.218406554318853,
+#                'FP_perc': 2.7817843039342773,
+#                'MCC': 0.6982309025706909,
+#                'NPV': 0.9258749372741192,
+#                'PPV': 0.827317657927369,
+#                'TNR': 0.9654239671845536,
+#                'TN_perc': 77.67233600484654,
+#                'TPR': 0.6818558871457487,
+#                'TP_perc': 13.327473136900329,
+#                'bias': 0.824,
+#                'csi': 0.597,
+#                'equitable_threat_score': 0.531,
+#                'false_negatives': 3507375,
+#                'false_positives': 1569013,
+#                'far': 0.173,
+#                'obsNegative_area': 453786300.0,
+#                'obsNegative_perc': 0.8045412030878082,
+#                'obsPositive_area': 110244850.0,
+#                'obsPositive_perc': 0.1954587969121918,
+#                'percent_correct': 0.91,
+#                'pod': 0.682,
+#                'positiveDiff_area': -19383620.0,
+#                'positiveDiff_perc': -0.034366222503845745,
+#                'predNegative_area': 473169920.0,
+#                'predNegative_perc': 0.838907425591654,
+#                'predPositive_area': 90861230.0,
+#                'predPositive_perc': 0.16109257440834607,
+#                'prevalence': 0.1954587969121918,
+#                'total_area': 564031150.0,
+#                'true_negatives': 43809617,
+#                'true_positives': 7517110}}
+        
         if compare_to_previous:
             print("Writing regression report...")
             text_block = []
@@ -254,13 +326,13 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                     
                 text_block.append([" "])
             
-            regression_report_csv = os.path.join(branch_test_case_dir, 'regression_report.csv')
+            regression_report_csv = os.path.join(branch_test_case_dir, 'stats_summary.csv')
             with open(regression_report_csv, 'w', newline='') as csvfile:
                 csv_writer = csv.writer(csvfile)
                 csv_writer.writerows(text_block)
              
             print()
-            print("*************************************************************************")
+            print("--------------------------------------------------------------------------------------------------")
             ENDC = '\033[m'
             TGREEN = '\033[32;1m'
             TRED = '\033[31;1m'
@@ -275,33 +347,57 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                     if first_item != stats_mode:  # Update the stats_mode and print a separator. 
                         print()
                         print()
-                        print("-------------------------------------------------------------------------")
+                        print("--------------------------------------------------------------------------------------------------")
                     print()
                     stats_mode = first_item
                     print(WHITE_BOLD + stats_mode.upper().replace('_', ' ') + ": " + return_interval.upper(), ENDC)
                     print()
                 
+                    color = WHITE_BOLD
+                    metric_name = 'METRIC'.center(len(max(SUMMARY_STATS, key=len)))
+                    percent_change_header = '% CHG'
+                    difference_header = 'DIFF'
+                    current_version_header = line[-1].upper()
+                    last_version_header = line[-2].upper()
+                    # Print Header.
+                    print(color + metric_name + "      " + percent_change_header.center((7)) + "       " + difference_header.center((15))  + "    " + current_version_header.center(18) + " " + last_version_header.center(18), ENDC)
+                # Format and print stat row.
                 elif first_item in SUMMARY_STATS:
                     stat_name = first_item.upper().center(len(max(SUMMARY_STATS, key=len))).replace('_', ' ')
                     current_version = round((line[-1]), 3)
-                    last_version = round((line[-2]), 3)
+                    last_version = round((line[-2]) + 0.000, 3)
                     difference = round(current_version - last_version, 3)
                     if difference > 0:
-                        symbol, color = '+', TGREEN
+                        symbol = '+'
+                        if first_item in ['csi', 'pod', 'true_negatives', 'true_positives', 'percent_correct']:
+                            color = TGREEN
+                        elif first_item in ['far', 'false_negatives', 'false_positives', 'bias']:
+                            color = TRED
+                        else:
+                            color = TWHITE
                     if difference < 0: 
-                        symbol, color = '-', TRED
+                        symbol = '-'
+                        if first_item in ['csi', 'pod', 'true_negatives', 'true_positives', 'percent_correct']:
+                            color = TRED
+                        elif first_item in ['far', 'false_negatives', 'false_positives', 'bias']:
+                            color = TGREEN
+                        else:
+                            color = TWHITE
+                            
                     if difference == 0 : 
                         symbol, color = '+', TWHITE
-                    percent_change = round((difference / last_version)*100,1)
-
-                    print(stat_name + "  " + color + (symbol + " " + str(abs(percent_change)) + " %"), ENDC + " |  " + color + (symbol + " " + str(abs(difference)).center(5)), ENDC + "  (" + str(current_version) + " vs " + str(last_version) + ")")
+                    percent_change = round((difference / last_version)*100,2)
+                    
+                    
+                    print(stat_name + "     " + color + (symbol + " {:5.2f}".format(abs(percent_change)) + " %").rjust(len(percent_change_header)), ENDC + "    " + color + ("{:12.3f}".format((difference))).rjust(len(difference_header)), ENDC + "    " + "{:15.3f}".format(current_version).rjust(len(current_version_header)) + "   " + "{:15.3f}".format(last_version).rjust(len(last_version_header)) + "  ")
         
             print()
-            print("*************************************************************************")
+            print()
+            print("--------------------------------------------------------------------------------------------------")
             print()
                             
         print(" ")
-        print("Completed. Stats outputs for " + test_id + " are in " + branch_test_case_dir)
+        print("Evaluation complete. All metrics for " + test_id + ", " + branch_name + ", " + return_interval + " are available at " + os.path.join(branch_test_case_dir, return_interval))
         print(" ")
     
 

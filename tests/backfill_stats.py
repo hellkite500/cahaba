@@ -24,7 +24,7 @@ if __name__ == '__main__':
             print("---------> " + return_interval)
             current_huc = test_id.split('_')[0]
             
-            for branch_name in ['fim_2_0_0']:
+            for branch_name in ['fim_1_0_0']:
                 print(("---------> " + branch_name))
                 huc6 = test_id[:6]
                 
@@ -35,7 +35,3 @@ if __name__ == '__main__':
                 print(("---------> Running alpha test..."))
                 run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=True)
 
-                      
-                print(" ")
-                print("Completed. Stats outputs for " + test_id + " are in " + branch_test_case_dir)
-                print(" ")
