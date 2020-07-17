@@ -19,6 +19,7 @@ from rasterio.windows import transform,Window
 from collections import OrderedDict
 import argparse
 from warnings import warn
+from gdal import BuildVRT
 
 def inundate(
              rem,catchments,hydro_table,forecast,hucs=None,hucs_layerName=None,subset_hucs=None,
