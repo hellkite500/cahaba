@@ -52,6 +52,7 @@ output_hydro_table = output_hydro_table.merge(input_flows.loc[:,['HydroID','Lake
 output_hydro_table['LakeID'] = output_hydro_table['LakeID'].astype(int)
 output_hydro_table = output_hydro_table.rename(columns={'HUC8':'HUC'})
 output_hydro_table.drop(columns='fossid',inplace=True)
+#output_hydro_table['discharge_cms'] = output_hydro_table['discharge_cms'].round(4)
 
 # make src json
 output_src_json = dict()
