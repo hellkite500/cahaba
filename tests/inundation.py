@@ -45,6 +45,8 @@ def inundate(
         Batch mode only. File path or fiona collection of vector polygons in HUC 4,6,or 8's to inundate on. Must have an attribute named as either "HUC4","HUC6", or "HUC8" with the associated values.
     hucs_layerName : str, optional
         Batch mode only. Layer name in hucs to use if multi-layer file is passed.
+    subset_hucs : str or list of str, optional
+        Batch mode only. File path to line delimited file, HUC string, or list of HUC strings to further subset hucs file for inundating.
     num_workers : int, optional
         Batch mode only. Number of workers to use in batch mode. Must be 1 or greater.
     aggregate : bool, optional
@@ -442,12 +444,18 @@ def __subset_hydroTable_to_forecast(hydroTable,forecast,subset_hucs=None):
     
 
     # susbset hucs if passed
-    if isinstance(subset_hucs,list):
-        if len(subset_hucs) == 1:
-            try:
-                subset_hucs = open(subset_hucs[0]).read().split('\n')
-            except FileNotFoundError:
-                pass
+    if subset_hucs is not None:
+        if isinstance(subset_hucs,list):
+            if len(subset_hucs) == 1:
+                try:
+                    subset_hucs = open(subset_hucs[0]).read().split('\n')
+                except FileNotFoundError:
+                    pass
+        elif isinstance(subset_hucs,str):
+                try:
+                    subset_hucs = open(subset_hucs).read().split('\n')
+                except FileNotFoundError:
+                    pass
 
         # subsets HUCS
         hydroTable = hydroTable[np.in1d(hydroTable.index.get_level_values('HUC'), subset_hucs)]
