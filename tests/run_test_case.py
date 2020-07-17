@@ -11,9 +11,10 @@ from utils.shared_functions import get_contingency_table_from_binary_rasters, co
 
 TEST_CASES_DIR = r'/data/test_cases/'  # Will update.
 INPUTS_DIR = r'/data/inputs'
-SUMMARY_STATS = ['csi', 'pod', 'far', 'MCC', 'bias', 'equitable_threat_score', 'true_negatives', 'false_negatives', 'true_positives', 'false_positives', ]
+SUMMARY_STATS = ['csi', 'pod', 'far', 'MCC', 'bias', 'true_negatives', 'false_negatives', 'true_positives', 'false_positives', ]
 GO_UP_STATS = ['csi', 'pod', 'MCC', 'true_negatives', 'true_positives', 'percent_correct']
 GO_DOWN_STATS = ['far', 'false_negatives', 'false_positives', 'bias']
+OUTPUTS_DIR = os.environ['outputDataDir']
 
 from inundation import inundate
 
@@ -139,7 +140,7 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
     return difference_dict
     
 
-def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=False):
+def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=False, legacy_fim_run_dir=False):
         
     stats_modes_list = ['total_area']
     if run_structure_stats: stats_modes_list.append('structures')
@@ -150,12 +151,20 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     feature_id_data = pd.read_csv(lake_feature_id_csv, header=0)
     feature_ids_to_mask = list(feature_id_data.ID)
 
+    if legacy_fim_run_dir:
+        fim_run_parent = os.path.join(os.environ['HISTORICAL_FIM_RUN'], fim_run_dir)
+    else:
+        fim_run_parent = os.path.join(os.environ['outputDataDir'], fim_run_dir)
+        
+    assert os.path.exists(fim_run_parent), "Cannot locate " + fim_run_parent
+
     # Create paths to fim_run outputs for use in inundate().
-    rem = os.path.join(fim_run_dir, 'rem_clipped_zeroed_masked.tif')
-    catchments = os.path.join(fim_run_dir, 'gw_catchments_reaches_clipped_addedAttributes.tif')
+    rem = os.path.join(fim_run_parent, 'rem_clipped_zeroed_masked.tif')
+    
+    catchments = os.path.join(fim_run_parent, 'gw_catchments_reaches_clipped_addedAttributes.tif')
     current_huc = test_id.split('_')[0]
     hucs, hucs_layerName = os.path.join(INPUTS_DIR, 'wbd', 'WBD_National.gpkg'), 'WBDHU8'
-    hydro_table = os.path.join(fim_run_dir, 'hydroTable.csv')
+    hydro_table = os.path.join(fim_run_parent, 'hydroTable.csv')
     
     # Crosswalk feature_ids to hydroids.
     hydro_table_data = pd.read_csv(hydro_table, header=0)
@@ -200,12 +209,11 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         # Run inundate.
         print("Running inundation for " + return_interval + " for " + test_id + "...")
         inundate(
-                 rem,catchments,forecast,hydro_table=hydro_table,hucs=hucs,hucs_layerName=hucs_layerName,
-                 num_workers=1,inundation_raster=inundation_raster,inundation_polygon=None,depths=None,
-                 out_raster_profile=None,out_vector_profile=None,aggregate=False,
-                 current_huc=current_huc,__rating_curve=None,__cross_walk=None
+                 rem,catchments,hydro_table,forecast,hucs=hucs,hucs_layerName=hucs_layerName,
+                 num_workers=1,aggregate=False,inundation_raster=inundation_raster,inundation_polygon=None,
+                 depths=None,out_raster_profile=None,out_vector_profile=None,quiet=False
                 )
-   
+    
         predicted_raster_path = os.path.join(os.path.split(inundation_raster)[0], os.path.split(inundation_raster)[1].replace('.tif', '_' + current_huc + '.tif'))  # The inundate adds the huc to the name so I account for that here.
     
         # Define outputs for agreement_raster, stats_json, and stats_csv.
@@ -348,13 +356,14 @@ if __name__ == '__main__':
     
     # Parse arguments.
     parser = argparse.ArgumentParser(description='Inundation mapping and regression analysis for FOSS FIM. Regression analysis results are stored in the test directory.')
-    parser.add_argument('-r','--fim-run-dir',help='Path to directory containing outputs of fim_run.sh',required=True)
+    parser.add_argument('-r','--fim-run-dir',help='Name of directory containing outputs of fim_run.sh',required=True)
     parser.add_argument('-b', '--branch-name',help='The name of the working branch in which features are being tested',required=True,default="")
     parser.add_argument('-t','--test-id',help='The test_id to use. Format as: HUC_BENCHMARKTYPE, e.g. 12345678_ble.',required=True,default="")
     parser.add_argument('-y', '--return-interval',help='The return interval to check. Options include: 100yr, 500yr',required=False,default=['10yr', '100yr', '500yr'])
     parser.add_argument('-c', '--compare-to-previous', help='Compare to previous versions of HAND.', required=False,action='store_true')
     parser.add_argument('-s', '--run-structure-stats', help='Create contingency stats at structures.', required=False,action='store_true')
     parser.add_argument('-a', '--archive-results', help='Automatically copy results to the "previous_version" archive for test_id. For admin use only.', required=False,action='store_true')
+    parser.add_argument('-l','--legacy-fim-run-dir',help='If set, the -b argument name is redirected to historical fim_run output data dir.',required=False, action='store_true')
     
     # Extract to dictionary and assign to variables.
     args = vars(parser.parse_args())

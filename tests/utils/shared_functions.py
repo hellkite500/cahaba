@@ -21,7 +21,6 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     
     """
     
-    
     import numpy as np
     
     total_population = true_negatives + false_negatives + false_positives + true_positives
@@ -166,8 +165,9 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
     
     predicted_array_raw = predicted_src.read(1)
 
-    # WILL NOT STAY--JUST DEALING WITH DIFFERENT SHAPES OF INPUT DATA:
-    benchmark_array = benchmark_array[:, :-1]
+    benchmark_array = benchmark_array[:-1, :-1]  # WILL NOT STAY--JUST DEALING WITH DIFFERENT SHAPES OF INPUT DATA:
+    
+    # Align the benchmark domain to the modeled domain. 
     benchmark_array = np.where(predicted_array==predicted_src.nodata, 10, benchmark_array)
             
     # Ensure zeros and ones for binary comparison. Assume that positive values mean flooding and 0 or negative values mean dry. 
@@ -212,7 +212,7 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
             layer_path = additional_layers_dict[layer_name]
             layer_src = rasterio.open(layer_path)
             layer_array = layer_src.read(1)
-            layer_array = layer_array[:, :-1]  # TEMPORARY UNTIL SHAPE IS FIXED BY GDAL UPGRADE
+            layer_array = layer_array[:-1, :-1]  # TEMPORARY UNTIL SHAPE IS FIXED BY GDAL UPGRADE
             
             # Omit all areas that spatially disagree with the layer_array.
             layer_agreement_array = np.where(layer_array>0, agreement_array, 10)
