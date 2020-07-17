@@ -99,8 +99,9 @@ def inundate(
 
     # check that aggregate is only done for hucs mode
     aggregate = bool(aggregate)
-    if aggregate:
-        warn("Aggregate feature currently not working. Setting to false for now.")
+    #if aggregate:
+        #warn("Aggregate feature currently not working. Setting to false for now.")
+        #aggregate = False
     if hucs is None:
         assert (not aggregate), "Pass HUCs file if aggregation is desired"
 
@@ -458,6 +459,12 @@ def __subset_hydroTable_to_forecast(hydroTable,forecast,subset_hucs=None):
                     pass
 
         # subsets HUCS
+        subset_hucs_orig = subset_hucs.copy() ; subset_hucs = []
+        for huc in np.unique(hydroTable.index.get_level_values('HUC')):
+            for sh in subset_hucs_orig:
+                if huc.startswith(sh):
+                    subset_hucs += [huc]
+        
         hydroTable = hydroTable[np.in1d(hydroTable.index.get_level_values('HUC'), subset_hucs)]
 
     # join tables
