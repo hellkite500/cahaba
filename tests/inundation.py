@@ -99,9 +99,9 @@ def inundate(
 
     # check that aggregate is only done for hucs mode
     aggregate = bool(aggregate)
-    #if aggregate:
-        #warn("Aggregate feature currently not working. Setting to false for now.")
-        #aggregate = False
+    if aggregate:
+        warn("Aggregate feature currently not working. Setting to false for now.")
+        aggregate = False
     if hucs is None:
         assert (not aggregate), "Pass HUCs file if aggregation is desired"
 
