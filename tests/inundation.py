@@ -185,10 +185,14 @@ def inundate(
     if (aggregate) & (hucs is not None):
         # inun grid vrt
         if inundation_raster is not None:
-            _ = run('gdalbuildvrt -q -overwrite {} {}'.format(splitext(inundation_raster)[0]+'.vrt'," ".join(inundation_rasters)),shell=True)
+            inun_vrt = BuildVRT(splitext(inundation_raster)[0]+'.vrt',inundation_rasters)
+            inun_vrt = None
+            #_ = run('gdalbuildvrt -q -overwrite {} {}'.format(splitext(inundation_raster)[0]+'.vrt'," ".join(inundation_rasters)),shell=True)
         # depths vrt
         if depths is not None:
-            _ = run('gdalbuildvrt -q -overwrite -r bilinear {} {}'.format(splitext(depths)[0]+'.vrt'," ".join(depth_rasters)),shell=True)
+            depths_vrt = BuildVRT(splitext(depths)[0]+'.vrt',depth_rasters,resampleAlg='bilinear')
+            depths_vrt = None
+            #_ = run('gdalbuildvrt -q -overwrite -r bilinear {} {}'.format(splitext(depths)[0]+'.vrt'," ".join(depth_rasters)),shell=True)
 
         # concat inun poly
         if inundation_polygon is not None:
