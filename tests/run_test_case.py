@@ -145,12 +145,6 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     stats_modes_list = ['total_area']
     if run_structure_stats: stats_modes_list.append('structures')
     
-    # Get list of feature_ids_to_mask.
-    lake_feature_id_csv = r'/data/pre_inputs/lake_feature_id.csv'  # This will be replaced by hydroTable
-    
-    feature_id_data = pd.read_csv(lake_feature_id_csv, header=0)
-    feature_ids_to_mask = list(feature_id_data.ID)
-
     if legacy_fim_run_dir:
         fim_run_parent = os.path.join(os.environ['HISTORICAL_FIM_RUN'], fim_run_dir)
     else:
@@ -170,7 +164,16 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     hydro_table_data = pd.read_csv(hydro_table, header=0)
     ht_feature_id_list = list(hydro_table_data.feature_id)
     ht_hydro_id_list = list(hydro_table_data.HydroID)
+    lake_id_list = list(hydro_table_data.LakeID)
     
+    # Get list of feature_ids_to_mask.    
+    feature_ids_to_mask = []
+    for f in range(0, len(lake_id_list)):
+        if lake_id_list[f] != -999:
+            lake_feature_id = ht_feature_id_list[f]
+            if lake_feature_id not in feature_ids_to_mask:
+                feature_ids_to_mask.append(lake_feature_id)
+
     # Remove duplicates and create list of hydro_ids to use as waterbody mask.
     reduced_ht_feature_id_list, reduced_ht_hydro_id_list, hydro_ids_to_mask = [], [], []
 
@@ -296,7 +299,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                     print()
                 
                     color = WHITE_BOLD
-                    metric_name = 'METRIC'.center(len(max(SUMMARY_STATS, key=len)))
+                    metric_name = '      '.center(len(max(SUMMARY_STATS, key=len)))
                     percent_change_header = '% CHG'
                     difference_header = 'DIFF'
                     current_version_header = line[current_version_index].upper()
@@ -331,7 +334,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                     percent_change = round((difference / last_version)*100,2)
                     
                     
-                    print(stat_name + "     " + color + (symbol + " {:5.2f}".format(abs(percent_change)) + " %").rjust(len(percent_change_header)), ENDC + "    " + color + ("{:12.3f}".format((difference))).rjust(len(difference_header)), ENDC + "    " + "{:15.3f}".format(current_version).rjust(len(current_version_header)) + "   " + "{:15.3f}".format(last_version).rjust(len(last_version_header)) + "  ")
+                    print(WHITE_BOLD + stat_name + "     " + color + (symbol + " {:5.2f}".format(abs(percent_change)) + " %").rjust(len(percent_change_header)), ENDC + "    " + color + ("{:12.3f}".format((difference))).rjust(len(difference_header)), ENDC + "    " + "{:15.3f}".format(current_version).rjust(len(current_version_header)) + "   " + "{:15.3f}".format(last_version).rjust(len(last_version_header)) + "  ")
         
             print()
             print()
