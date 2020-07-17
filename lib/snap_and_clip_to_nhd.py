@@ -14,13 +14,12 @@ def subset_vector_layers(hucCode,projection,nwm_headwaters_fileName,nhd_streams_
     hucUnitLength = len(str(hucCode))
 
     wbd = gpd.read_file(wbd_fileName)
-    
+
     # find intersecting lakes and writeout
     print("Subsetting NWM Lakes for HUC{} {}".format(hucUnitLength,hucCode),flush=True)
     nwm_lakes = gpd.read_file(nwm_lakes_fileName, mask = wbd)
-    #nwm_lakes = nwm_lakes.loc[nwm_lakes.intersects(wbd.geometry[0]),:]
-    #nwm_lakes.reset_index(drop=True,inplace=True)
-    nwm_lakes.to_file(subset_nwm_lakes_fileName,driver=getDriver(subset_nwm_lakes_fileName),index=False)
+    if not nwm_lakes.empty:
+        nwm_lakes.to_file(subset_nwm_lakes_fileName,driver=getDriver(subset_nwm_lakes_fileName),index=False)
     del nwm_lakes
 
     # find intersecting nwm_catchments
@@ -30,7 +29,7 @@ def subset_vector_layers(hucCode,projection,nwm_headwaters_fileName,nhd_streams_
     #nwm_catchments.reset_index(drop=True,inplace=True)
     nwm_catchments.to_file(subset_nwm_catchments_fileName,driver=getDriver(subset_nwm_catchments_fileName),index=False)
     del nwm_catchments
-    
+
     # query nhd+HR streams for HUC code
     print("Querying NHD Streams for HUC{} {}".format(hucUnitLength,hucCode),flush=True)
     nhd_streams = gpd.read_file(nhd_streams_fileName, mask = wbd)
@@ -61,7 +60,7 @@ def subset_vector_layers(hucCode,projection,nwm_headwaters_fileName,nhd_streams_
     # writeout nwm headwaters
     nwm_headwaters.reset_index(drop=True,inplace=True)
     nwm_headwaters.to_file(subset_nwm_headwaters_fileName,driver=getDriver(subset_nwm_headwaters_fileName),index=False)
-    del nwm_headwaters 
+    del nwm_headwaters
 
     # identify inflowing streams
     print("Identify inflowing streams",flush=True)
@@ -194,7 +193,7 @@ def getDriver(fileName):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Relative elevation from pixel based watersheds')
-    parser.add_argument('-d','--hucCode', help='DEM to use within project path', required=True,type=int)
+    parser.add_argument('-d','--hucCode', help='DEM to use within project path', required=True,type=str)
     parser.add_argument('-p','--projection', help='DEM to use within project path', required=True)
     parser.add_argument('-w','--nwm-headwaters', help='DEM to use within project path', required=True)
     parser.add_argument('-s','--nhd-streams',help='Basins polygons to use within project path',required=True)
