@@ -212,7 +212,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         # Run inundate.
         print("Running inundation for " + return_interval + " for " + test_id + "...")
         inundate(
-                 rem,catchments,hydro_table,forecast,hucs=hucs,hucs_layerName=hucs_layerName,
+                 rem,catchments,hydro_table,forecast,hucs=hucs,hucs_layerName=hucs_layerName,subset_hucs=current_huc,
                  num_workers=1,aggregate=False,inundation_raster=inundation_raster,inundation_polygon=None,
                  depths=None,out_raster_profile=None,out_vector_profile=None,quiet=False
                 )
@@ -275,8 +275,9 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
             print()
             print("--------------------------------------------------------------------------------------------------")
             ENDC = '\033[m'
-            TGREEN = '\033[32;1m'
-            TRED = '\033[31;1m'
+            TGREEN_BOLD = '\033[32;1m'
+            TGREEN = '\033[32m'
+            TRED_BOLD = '\033[31;1m'
             TWHITE = '\033[37m'
             WHITE_BOLD = '\033[37;1m'
             CYAN_BOLD = '\033[36;1m'
@@ -315,17 +316,17 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                     if difference > 0:
                         symbol = '+'
                         if first_item in GO_UP_STATS:
-                            color = TGREEN
+                            color = TGREEN_BOLD
                         elif first_item in GO_DOWN_STATS:
-                            color = TRED
+                            color = TRED_BOLD
                         else:
                             color = TWHITE
                     if difference < 0: 
                         symbol = '-'
                         if first_item in GO_UP_STATS:
-                            color = TRED
+                            color = TRED_BOLD
                         elif first_item in GO_DOWN_STATS:
-                            color = TGREEN
+                            color = TGREEN_BOLD
                         else:
                             color = TWHITE
                             
