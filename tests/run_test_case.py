@@ -159,6 +159,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     current_huc = test_id.split('_')[0]
     hucs, hucs_layerName = os.path.join(INPUTS_DIR, 'wbd', 'WBD_National.gpkg'), 'WBDHU8'
     hydro_table = os.path.join(fim_run_parent, 'hydroTable.csv')
+    print(hydro_table)
     
     # Crosswalk feature_ids to hydroids.
     hydro_table_data = pd.read_csv(hydro_table, header=0)
