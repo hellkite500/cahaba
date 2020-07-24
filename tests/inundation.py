@@ -19,12 +19,23 @@ from rasterio.windows import transform,Window
 from collections import OrderedDict
 import argparse
 from warnings import warn
+from gdal import BuildVRT
 
 def inundate(
              rem,catchments,hydro_table,forecast,hucs=None,hucs_layerName=None,subset_hucs=None,
              num_workers=1,aggregate=False,inundation_raster=None,inundation_polygon=None,
              depths=None,out_raster_profile=None,out_vector_profile=None,quiet=False
             ):
+    
+    print(rem)
+    print(catchments)
+    print(hydro_table)
+    print(forecast)
+    print(hucs)
+    print(hucs_layerName)
+    print(type(subset_hucs))
+    print(subset_hucs)
+    
     """
 
     Run inundation on FIM >=3.0 outputs at job-level scale or aggregated scale
@@ -101,6 +112,7 @@ def inundate(
     aggregate = bool(aggregate)
     if aggregate:
         warn("Aggregate feature currently not working. Setting to false for now.")
+        aggregate = False
     if hucs is None:
         assert (not aggregate), "Pass HUCs file if aggregation is desired"
 
@@ -183,10 +195,14 @@ def inundate(
     if (aggregate) & (hucs is not None):
         # inun grid vrt
         if inundation_raster is not None:
-            _ = run('gdalbuildvrt -q -overwrite {} {}'.format(splitext(inundation_raster)[0]+'.vrt'," ".join(inundation_rasters)),shell=True)
+            inun_vrt = BuildVRT(splitext(inundation_raster)[0]+'.vrt',inundation_rasters)
+            inun_vrt = None
+            #_ = run('gdalbuildvrt -q -overwrite {} {}'.format(splitext(inundation_raster)[0]+'.vrt'," ".join(inundation_rasters)),shell=True)
         # depths vrt
         if depths is not None:
-            _ = run('gdalbuildvrt -q -overwrite -r bilinear {} {}'.format(splitext(depths)[0]+'.vrt'," ".join(depth_rasters)),shell=True)
+            depths_vrt = BuildVRT(splitext(depths)[0]+'.vrt',depth_rasters,resampleAlg='bilinear')
+            depths_vrt = None
+            #_ = run('gdalbuildvrt -q -overwrite -r bilinear {} {}'.format(splitext(depths)[0]+'.vrt'," ".join(depth_rasters)),shell=True)
 
         # concat inun poly
         if inundation_polygon is not None:
@@ -458,6 +474,12 @@ def __subset_hydroTable_to_forecast(hydroTable,forecast,subset_hucs=None):
                     pass
 
         # subsets HUCS
+        subset_hucs_orig = subset_hucs.copy() ; subset_hucs = []
+        for huc in np.unique(hydroTable.index.get_level_values('HUC')):
+            for sh in subset_hucs_orig:
+                if huc.startswith(sh):
+                    subset_hucs += [huc]
+        
         hydroTable = hydroTable[np.in1d(hydroTable.index.get_level_values('HUC'), subset_hucs)]
 
     # join tables

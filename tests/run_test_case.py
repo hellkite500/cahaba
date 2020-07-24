@@ -213,7 +213,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         # Run inundate.
         print("Running inundation for " + return_interval + " for " + test_id + "...")
         inundate(
-                 rem,catchments,hydro_table,forecast,hucs=hucs,hucs_layerName=hucs_layerName,subset_hucs=current_huc,
+                 rem,catchments,hydro_table,forecast,hucs=hucs,hucs_layerName=hucs_layerName,subset_hucs=[current_huc],
                  num_workers=1,aggregate=False,inundation_raster=inundation_raster,inundation_polygon=None,
                  depths=None,out_raster_profile=None,out_vector_profile=None,quiet=False
                 )
