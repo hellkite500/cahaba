@@ -33,5 +33,5 @@ if __name__ == '__main__':
                 branch_test_case_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions', branch_name, return_interval)
                 
                 print(("---------> Running alpha test..."))
-                run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=True)
+                run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=True, archive_results=True, legacy_fim_run_dir=False)
 

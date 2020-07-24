@@ -152,19 +152,35 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
                                             {true_negatives: int, false_negatives: int, false_positives: int, true_positives: int}
     
     """
-    
+    from rasterio.warp import reproject, Resampling
     import rasterio
     import numpy as np
     import os
         
     # Load rasters.
     benchmark_src = rasterio.open(benchmark_raster_path)    
-    benchmark_array = benchmark_src.read(1)
     predicted_src = rasterio.open(predicted_raster_path)
     predicted_array = predicted_src.read(1)
     
+    benchmark_array_original = benchmark_src.read(1)
+    
+    benchmark_array = np.empty(predicted_array.shape, dtype=np.int8)
+    
+    print("Reprojecting benchmark data...")
+    reproject(benchmark_array_original, 
+          destination = benchmark_array,
+          src_transform = benchmark_src.transform, 
+          src_crs = benchmark_src.crs,
+          src_nodata = benchmark_src.nodata,
+          dst_transform = predicted_src.transform, 
+          dst_crs = predicted_src.crs,
+          dst_nodata = benchmark_src.nodata,
+          dst_resolution = predicted_src.res,
+          resampling = Resampling.nearest)
+    
+    # Reclassifying values to 0 and 1
+    
     predicted_array_raw = predicted_src.read(1)
-    benchmark_array = benchmark_array[:, :-1]  # WILL NOT STAY--JUST DEALING WITH DIFFERENT SHAPES OF INPUT DATA:
     
     # Align the benchmark domain to the modeled domain.
     benchmark_array = np.where(predicted_array==predicted_src.nodata, 10, benchmark_array)
@@ -210,9 +226,22 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
         for layer_name in additional_layers_dict:
             layer_path = additional_layers_dict[layer_name]
             layer_src = rasterio.open(layer_path)
-            layer_array = layer_src.read(1)
-            layer_array = layer_array[:, :-1]  # TEMPORARY UNTIL SHAPE IS FIXED BY GDAL UPGRADE
             
+            layer_array_original = layer_src.read(1)
+            layer_array = np.empty(agreement_array.shape, dtype=np.int8)
+                    
+            print("Reprojecting...")
+            reproject(layer_array_original, 
+                  destination = layer_array,
+                  src_transform = layer_src.transform, 
+                  src_crs = layer_src.crs,
+                  src_nodata = layer_src.nodata,
+                  dst_transform = predicted_src.transform, 
+                  dst_crs = predicted_src.crs,
+                  dst_nodata = layer_src.nodata,
+                  dst_resolution = predicted_src.res,
+                  resampling = Resampling.nearest)
+                    
             # Omit all areas that spatially disagree with the layer_array.
             layer_agreement_array = np.where(layer_array>0, agreement_array, 10)
             

@@ -159,7 +159,6 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     current_huc = test_id.split('_')[0]
     hucs, hucs_layerName = os.path.join(INPUTS_DIR, 'wbd', 'WBD_National.gpkg'), 'WBDHU8'
     hydro_table = os.path.join(fim_run_parent, 'hydroTable.csv')
-    print(hydro_table)
     
     # Crosswalk feature_ids to hydroids.
     hydro_table_data = pd.read_csv(hydro_table, header=0)
@@ -213,11 +212,11 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         # Run inundate.
         print("Running inundation for " + return_interval + " for " + test_id + "...")
         inundate(
-                 rem,catchments,hydro_table,forecast,hucs=hucs,hucs_layerName=hucs_layerName,subset_hucs=[current_huc],
+                 rem,catchments,hydro_table,forecast,hucs=hucs,hucs_layerName=hucs_layerName,subset_hucs=current_huc,
                  num_workers=1,aggregate=False,inundation_raster=inundation_raster,inundation_polygon=None,
                  depths=None,out_raster_profile=None,out_vector_profile=None,quiet=False
                 )
-    
+   
         predicted_raster_path = os.path.join(os.path.split(inundation_raster)[0], os.path.split(inundation_raster)[1].replace('.tif', '_' + current_huc + '.tif'))  # The inundate adds the huc to the name so I account for that here.
     
         # Define outputs for agreement_raster, stats_json, and stats_csv.
@@ -285,7 +284,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
             
             stats_mode = stats_modes_list[0]
             
-            last_version_index = text_block[0].index('latest_dev')
+            last_version_index = text_block[0].index('dev_latest')
             current_version_index = text_block[0].index(branch_name)
             
             for line in text_block:
@@ -347,15 +346,18 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         print("Evaluation complete. All metrics for " + test_id + ", " + branch_name + ", " + return_interval + " are available at " + branch_test_case_dir)
         print(" ")
     
-        if archive_results:
-            print("Copying outputs to the 'previous_version' archive for " + test_id + "...")
-            print()
-            import shutil
-            branch_name_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch_name)
-            destination_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions', branch_name)
-            
-            shutil.copytree(branch_name_dir, destination_dir)
-            
+    if archive_results:
+        print("Copying outputs to the 'previous_version' archive for " + test_id + "...")
+        print()
+        import shutil
+        branch_name_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch_name, return_interval)
+        destination_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions', branch_name, return_interval)
+        
+        print(branch_name_dir)
+        print(destination_dir)
+        
+        shutil.copytree(branch_name_dir, destination_dir)
+        
 
 if __name__ == '__main__':
     

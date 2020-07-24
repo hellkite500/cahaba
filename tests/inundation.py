@@ -27,15 +27,6 @@ def inundate(
              depths=None,out_raster_profile=None,out_vector_profile=None,quiet=False
             ):
     
-    print(rem)
-    print(catchments)
-    print(hydro_table)
-    print(forecast)
-    print(hucs)
-    print(hucs_layerName)
-    print(type(subset_hucs))
-    print(subset_hucs)
-    
     """
 
     Run inundation on FIM >=3.0 outputs at job-level scale or aggregated scale
