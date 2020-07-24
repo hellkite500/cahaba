@@ -461,6 +461,7 @@ def __subset_hydroTable_to_forecast(hydroTable,forecast,subset_hucs=None):
                 try:
                     subset_hucs = open(subset_hucs).read().split('\n')
                 except FileNotFoundError:
+                    subset_hucs = [subset_hucs]
                     pass
 
         # subsets HUCS
