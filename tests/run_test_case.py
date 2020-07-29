@@ -283,7 +283,13 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
 
             stats_mode = stats_modes_list[0]
             
-            last_version_index = text_block[0].index('dev_latest')
+            try:
+                last_version_index = text_block[0].index('dev_latest')
+            except:
+                try:
+                    last_version_index = text_block[0].index('fim_2_3_3')
+                except:
+                    last_version_index = text_block[0].index('fim_1_0_0')
             current_version_index = text_block[0].index(branch_name)
             
             for line in text_block:
