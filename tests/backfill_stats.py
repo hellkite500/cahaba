@@ -19,6 +19,8 @@ if __name__ == '__main__':
     
     test_cases_dir_list = os.listdir(TEST_CASES_DIR)
     
+    previous_fim_list = os.listdir(PREVIOUS_FIM_DIR)
+        
     for test_id in test_cases_dir_list:
         if 'validation' not in test_id:
             print("Backfilling " + test_id + "...")
@@ -27,7 +29,7 @@ if __name__ == '__main__':
                 print("---------> " + return_interval)
                 current_huc = test_id.split('_')[0]
                 
-                for branch_name in ['fim_1_0_0', 'fim_2_3_3']:
+                for branch_name in previous_fim_list:
                     print(("---------> " + branch_name))
                     huc6 = test_id[:6]
                     
