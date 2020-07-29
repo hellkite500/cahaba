@@ -380,7 +380,7 @@ if __name__ == '__main__':
     # TEMPORARY CODE
     valid_test_id_list = os.listdir(TEST_CASES_DIR)
     for t in valid_test_id_list:
-        if 'validation_data' in t:
+        if 'validation' in t:
             valid_test_id_list.remove(t)
     
     exit_flag = False  # Default to False.
