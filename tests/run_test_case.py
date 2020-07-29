@@ -379,10 +379,7 @@ if __name__ == '__main__':
     
     # TEMPORARY CODE
     valid_test_id_list = os.listdir(TEST_CASES_DIR)
-    for t in valid_test_id_list:
-        if 'validation' in t:
-            valid_test_id_list.remove(t)
-    
+
     exit_flag = False  # Default to False.
     print()
     
@@ -391,13 +388,14 @@ if __name__ == '__main__':
         print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided test_id (-t) " + CYAN_BOLD + args['test_id'] + WHITE_BOLD + " is not available." + ENDC)
         print(WHITE_BOLD + "Available test_ids include: " + ENDC)
         for test_id in valid_test_id_list:
-            print(CYAN_BOLD + test_id + ENDC)
+          if 'validation' not in test_id.split('_'):
+              print(CYAN_BOLD + test_id + ENDC)
         print()
         exit_flag = True
         
     # Ensure fim_run_dir exists.
     if not os.path.exists(os.path.join(os.environ['outputDataDir'], args['fim_run_dir'])):
-        print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided fim_run_dir (-r) " + CYAN_BOLD + args['test_id'] + WHITE_BOLD + " could not be located in the 'outputs' directory." + ENDC)
+        print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided fim_run_dir (-r) " + CYAN_BOLD + args['fim_run_dir'] + WHITE_BOLD + " could not be located in the 'outputs' directory." + ENDC)
         print(WHITE_BOLD + "Please provide the parent directory name for fim_run.sh outputs. These outputs are usually written in a subdirectory, e.g. outputs/123456/123456." + ENDC)
         print()
         exit_flag = True
