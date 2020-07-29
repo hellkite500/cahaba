@@ -9,6 +9,7 @@ import csv
 import argparse
 
 from utils.shared_functions import get_contingency_table_from_binary_rasters, compute_stats_from_contingency_table
+from inundation import inundate
 
 TEST_CASES_DIR = r'/data/test_cases/'  # Will update.
 INPUTS_DIR = r'/data/inputs'
@@ -24,10 +25,7 @@ TRED_BOLD = '\033[31;1m'
 TWHITE = '\033[37m'
 WHITE_BOLD = '\033[37;1m'
 CYAN_BOLD = '\033[36;1m'
-
             
-from inundation import inundate
-
 
 def profile_test_case_archive(archive_to_check, return_interval, stats_mode):
     """
@@ -343,7 +341,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
             print("--------------------------------------------------------------------------------------------------")
             print()
                             
-        print("Evaluation complete. All metrics for " + test_id + ", " + branch_name + ", " + return_interval + " are available at " + branch_test_case_dir)
+        print("Evaluation complete. All metrics for " + test_id + ", " + branch_name + ", " + return_interval + " are available at " + CYAN_BOLD + branch_test_case_dir + ENDC)
         print(" ")
     
     if archive_results:
@@ -405,7 +403,6 @@ if __name__ == '__main__':
         
         exit_flag = True
 
-        
     if exit_flag:
         print()
         sys.exit()
