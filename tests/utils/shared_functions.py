@@ -84,7 +84,6 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     obsPositive_perc = obsPositive / total_population
     obsNegative_perc = obsNegative / total_population
     
-
     positiveDiff_perc = predPositive_perc - obsPositive_perc
     
     prevalence = (true_positives + false_negatives) / total_population
@@ -158,12 +157,13 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
     import os
         
     # Load rasters.
-    benchmark_src = rasterio.open(benchmark_raster_path)    
+    print("Loading benchmark...")
+    benchmark_src = rasterio.open(benchmark_raster_path)
+    print("Loading predicted...")
     predicted_src = rasterio.open(predicted_raster_path)
     predicted_array = predicted_src.read(1)
     
     benchmark_array_original = benchmark_src.read(1)
-    
     benchmark_array = np.empty(predicted_array.shape, dtype=np.int8)
     
     print("Reprojecting benchmark data...")
@@ -176,9 +176,10 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
           dst_crs = predicted_src.crs,
           dst_nodata = benchmark_src.nodata,
           dst_resolution = predicted_src.res,
-          resampling = Resampling.nearest)
+          resampling = Resampling.bilinear)
     
     # Reclassifying values to 0 and 1
+    
     
     predicted_array_raw = predicted_src.read(1)
     
@@ -240,7 +241,7 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
                   dst_crs = predicted_src.crs,
                   dst_nodata = layer_src.nodata,
                   dst_resolution = predicted_src.res,
-                  resampling = Resampling.nearest)
+                  resampling = Resampling.bilinear)
                     
             # Omit all areas that spatially disagree with the layer_array.
             layer_agreement_array = np.where(layer_array>0, agreement_array, 10)

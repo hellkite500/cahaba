@@ -196,7 +196,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     for return_interval in return_interval_list:
         # Construct path to validation raster and forecast file.
         benchmark_category = test_id.split('_')[1]
-        benchmark_raster_path = os.path.join(TEST_CASES_DIR, test_id, 'validation_data', return_interval, benchmark_category + '_huc_' + current_huc + '_inundation_extent_' + return_interval + '.tif')
+        benchmark_raster_path = os.path.join(TEST_CASES_DIR, 'validation_data_' + benchmark_category, current_huc, return_interval, benchmark_category + '_huc_' + current_huc + '_depth_' + return_interval + '.tif')
         if not os.path.exists(benchmark_raster_path):  # Skip loop instance if the benchmark raster doesn't exist.
             continue
         
@@ -207,7 +207,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         
         # Define paths to inundation_raster and forecast file.
         inundation_raster = os.path.join(branch_test_case_dir, 'inundation_extent.tif')
-        forecast = os.path.join(TEST_CASES_DIR, test_id, 'validation_data', return_interval, benchmark_category + '_huc_' + current_huc + '_flows_' + return_interval + '.csv')
+        forecast = os.path.join(TEST_CASES_DIR, 'validation_data_' + benchmark_category, current_huc, return_interval, benchmark_category + '_huc_' + current_huc + '_flows_' + return_interval + '.csv')
     
         # Run inundate.
         print("Running inundation for " + return_interval + " for " + test_id + "...")
@@ -353,10 +353,8 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         branch_name_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch_name, return_interval)
         destination_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions', branch_name, return_interval)
         
-        print(branch_name_dir)
-        print(destination_dir)
-        
         shutil.copytree(branch_name_dir, destination_dir)
+        shutil.rmtree(branch_name_dir)
         
 
 if __name__ == '__main__':
@@ -376,9 +374,10 @@ if __name__ == '__main__':
     args = vars(parser.parse_args())
     
     # TEMPORARY CODE
-    if args['test_id'] != '12090301_ble':
-        import sys
-        print("Only the 12090301_ble test case is supported at this time. Additional benchmark data are being processed and will be added soon.")
-        sys.exit()
-    else:  
-        run_alpha_test(**args)
+#    if args['test_id'] != '12090301_ble':
+#        import sys
+#        print("Only the 12090301_ble test case is supported at this time. Additional benchmark data are being processed and will be added soon.")
+#        sys.exit()
+#    else:  
+
+    run_alpha_test(**args)
