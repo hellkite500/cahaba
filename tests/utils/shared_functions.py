@@ -156,30 +156,28 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
     import numpy as np
     import os
         
+    print("-----> Evaluating performance across the total area...")
     # Load rasters.
-    print("Loading benchmark...")
     benchmark_src = rasterio.open(benchmark_raster_path)
-    print("Loading predicted...")
     predicted_src = rasterio.open(predicted_raster_path)
     predicted_array = predicted_src.read(1)
     
     benchmark_array_original = benchmark_src.read(1)
-    benchmark_array = np.empty(predicted_array.shape, dtype=np.int8)
     
-    print("Reprojecting benchmark data...")
-    reproject(benchmark_array_original, 
-          destination = benchmark_array,
-          src_transform = benchmark_src.transform, 
-          src_crs = benchmark_src.crs,
-          src_nodata = benchmark_src.nodata,
-          dst_transform = predicted_src.transform, 
-          dst_crs = predicted_src.crs,
-          dst_nodata = benchmark_src.nodata,
-          dst_resolution = predicted_src.res,
-          resampling = Resampling.bilinear)
-    
-    # Reclassifying values to 0 and 1
-    
+    if benchmark_array_original.shape != predicted_array.shape:
+        benchmark_array = np.empty(predicted_array.shape, dtype=np.int8)
+        
+        reproject(benchmark_array_original, 
+              destination = benchmark_array,
+              src_transform = benchmark_src.transform, 
+              src_crs = benchmark_src.crs,
+              src_nodata = benchmark_src.nodata,
+              dst_transform = predicted_src.transform, 
+              dst_crs = predicted_src.crs,
+              dst_nodata = benchmark_src.nodata,
+              dst_resolution = predicted_src.res,
+              resampling = Resampling.bilinear)
+            
     
     predicted_array_raw = predicted_src.read(1)
     
@@ -197,7 +195,6 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
     agreement_array = np.add(benchmark_array, 2*predicted_array)
     
     # Mask agreement array according to mask catchments.
-    print("Masking...")
     for value in mask_values:
         agreement_array = np.where(np.absolute(predicted_array_raw) == int(value), 4, agreement_array)
         
@@ -225,13 +222,13 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
     # Parse through dictionary of other layers and create contingency table metrics for the desired area. Layer must be raster with same shape as agreement_raster.
     if additional_layers_dict != {}:
         for layer_name in additional_layers_dict:
+            print("-----> Evaluating performance at " + layer_name + "...")
             layer_path = additional_layers_dict[layer_name]
             layer_src = rasterio.open(layer_path)
             
             layer_array_original = layer_src.read(1)
             layer_array = np.empty(agreement_array.shape, dtype=np.int8)
                     
-            print("Reprojecting...")
             reproject(layer_array_original, 
                   destination = layer_array,
                   src_transform = layer_src.transform, 

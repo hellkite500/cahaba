@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import pandas as pd
 import rasterio
 import json
@@ -16,6 +17,15 @@ GO_UP_STATS = ['csi', 'pod', 'MCC', 'true_negatives', 'true_positives', 'percent
 GO_DOWN_STATS = ['far', 'false_negatives', 'false_positives', 'bias']
 OUTPUTS_DIR = os.environ['outputDataDir']
 
+ENDC = '\033[m'
+TGREEN_BOLD = '\033[32;1m'
+TGREEN = '\033[32m'
+TRED_BOLD = '\033[31;1m'
+TWHITE = '\033[37m'
+WHITE_BOLD = '\033[37;1m'
+CYAN_BOLD = '\033[36;1m'
+
+            
 from inundation import inundate
 
 
@@ -95,7 +105,6 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
     stats_dictionary = {}
     
     for stats_mode in contingency_table_dictionary:
-        print("Running " + stats_mode + "...")
         true_negatives = contingency_table_dictionary[stats_mode]['true_negatives']
         false_negatives = contingency_table_dictionary[stats_mode]['false_negatives']
         false_positives = contingency_table_dictionary[stats_mode]['false_positives']
@@ -142,6 +151,7 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
 
 def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=False, legacy_fim_run_dir=False):
         
+    print("Running the alpha test for test_id: " + test_id + "...")
     stats_modes_list = ['total_area']
     if run_structure_stats: stats_modes_list.append('structures')
     
@@ -181,7 +191,6 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         if ht_hydro_id_list[i] not in reduced_ht_hydro_id_list:
             reduced_ht_hydro_id_list.append(ht_hydro_id_list[i])
             reduced_ht_feature_id_list.append(ht_feature_id_list[i])
-    print("Matching feature_ids...")
     for i in range(0, len(reduced_ht_feature_id_list)):
         ht_feature_id = reduced_ht_feature_id_list[i]
         ht_hydro_id = reduced_ht_hydro_id_list[i]
@@ -210,18 +219,18 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         forecast = os.path.join(TEST_CASES_DIR, 'validation_data_' + benchmark_category, current_huc, return_interval, benchmark_category + '_huc_' + current_huc + '_flows_' + return_interval + '.csv')
     
         # Run inundate.
-        print("Running inundation for " + return_interval + " for " + test_id + "...")
+        print("-----> Running inundate() to produce modeled inundation extent for the " + return_interval + " return period...")
         inundate(
                  rem,catchments,hydro_table,forecast,hucs=hucs,hucs_layerName=hucs_layerName,subset_hucs=current_huc,
                  num_workers=1,aggregate=False,inundation_raster=inundation_raster,inundation_polygon=None,
-                 depths=None,out_raster_profile=None,out_vector_profile=None,quiet=False
+                 depths=None,out_raster_profile=None,out_vector_profile=None,quiet=True
                 )
    
+        print("-----> Inundation mapping complete.")
         predicted_raster_path = os.path.join(os.path.split(inundation_raster)[0], os.path.split(inundation_raster)[1].replace('.tif', '_' + current_huc + '.tif'))  # The inundate adds the huc to the name so I account for that here.
     
         # Define outputs for agreement_raster, stats_json, and stats_csv.
-        print("Comparing predicted inundation to benchmark inundation...")
-
+        
         agreement_raster, stats_json, stats_csv = os.path.join(branch_test_case_dir, 'total_agreement.tif'), os.path.join(branch_test_case_dir, 'stats.json'), os.path.join(branch_test_case_dir, 'stats.csv')
             
         test_version_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, 
@@ -235,7 +244,6 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                                                                          )
         
         if compare_to_previous:
-            print("Writing regression report...")
             text_block = []
             # Compare to previous stats files that are available.    
             archive_to_check = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions')
@@ -274,14 +282,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
              
             print()
             print("--------------------------------------------------------------------------------------------------")
-            ENDC = '\033[m'
-            TGREEN_BOLD = '\033[32;1m'
-            TGREEN = '\033[32m'
-            TRED_BOLD = '\033[31;1m'
-            TWHITE = '\033[37m'
-            WHITE_BOLD = '\033[37;1m'
-            CYAN_BOLD = '\033[36;1m'
-            
+
             stats_mode = stats_modes_list[0]
             
             last_version_index = text_block[0].index('dev_latest')
@@ -296,6 +297,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                         print("--------------------------------------------------------------------------------------------------")
                     print()
                     stats_mode = first_item
+                    print(CYAN_BOLD + current_huc)
                     print(CYAN_BOLD + stats_mode.upper().replace('_', ' ') + ": " + return_interval.upper(), ENDC)
                     print()
                 
@@ -334,7 +336,6 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                         symbol, color = '+', TGREEN
                     percent_change = round((difference / last_version)*100,2)
                     
-                    
                     print(WHITE_BOLD + stat_name + "     " + color + (symbol + " {:5.2f}".format(abs(percent_change)) + " %").rjust(len(percent_change_header)), ENDC + "    " + color + ("{:12.3f}".format((difference))).rjust(len(difference_header)), ENDC + "    " + "{:15.3f}".format(current_version).rjust(len(current_version_header)) + "   " + "{:15.3f}".format(last_version).rjust(len(last_version_header)) + "  ")
         
             print()
@@ -342,7 +343,6 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
             print("--------------------------------------------------------------------------------------------------")
             print()
                             
-        print(" ")
         print("Evaluation complete. All metrics for " + test_id + ", " + branch_name + ", " + return_interval + " are available at " + branch_test_case_dir)
         print(" ")
     
@@ -374,10 +374,40 @@ if __name__ == '__main__':
     args = vars(parser.parse_args())
     
     # TEMPORARY CODE
-#    if args['test_id'] != '12090301_ble':
-#        import sys
-#        print("Only the 12090301_ble test case is supported at this time. Additional benchmark data are being processed and will be added soon.")
-#        sys.exit()
-#    else:  
+    valid_test_id_list = os.listdir(TEST_CASES_DIR)
+    for t in valid_test_id_list:
+        if 'validation_data' in t:
+            valid_test_id_list.remove(t)
+    
+    exit_flag = False  # Default to False.
+    print()
+    
+    # Ensure test_id is valid.
+    if args['test_id'] not in valid_test_id_list:
+        print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided test_id (-t) " + CYAN_BOLD + args['test_id'] + WHITE_BOLD + " is not available." + ENDC)
+        print(WHITE_BOLD + "Available test_ids include: " + ENDC)
+        for test_id in valid_test_id_list:
+            print(CYAN_BOLD + test_id + ENDC)
+        print()
+        exit_flag = True
+        
+    # Ensure fim_run_dir exists.
+    if not os.path.exists(os.path.join(os.environ['outputDataDir'], args['fim_run_dir'])):
+        print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided fim_run_dir (-r) " + CYAN_BOLD + args['test_id'] + WHITE_BOLD + " could not be located in the 'outputs' directory." + ENDC)
+        print(WHITE_BOLD + "Please provide the parent directory name for fim_run.sh outputs. These outputs are usually written in a subdirectory, e.g. outputs/123456/123456." + ENDC)
+        print()
+        exit_flag = True
+        
+    # Ensure return_interval available.
+    if args['return_interval'] == '10yr':
+        print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided return interval (-y) " + CYAN_BOLD + args['return_interval'] + WHITE_BOLD + " is not available." + ENDC)
+        print()
+        
+        exit_flag = True
 
-    run_alpha_test(**args)
+        
+    if exit_flag:
+        print()
+        sys.exit()
+    else:  
+        run_alpha_test(**args)
