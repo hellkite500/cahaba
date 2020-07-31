@@ -177,7 +177,6 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
               dst_nodata = benchmark_src.nodata,
               dst_resolution = predicted_src.res,
               resampling = Resampling.bilinear)
-            
     
     predicted_array_raw = predicted_src.read(1)
     
@@ -211,6 +210,16 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
             profile.update(nodata=10)
             with rasterio.open(agreement_raster, 'w', **profile) as dst:
                 dst.write(agreement_array, 1)
+         
+        # Write legend text file
+        legend_txt = os.path.join(os.path.split(agreement_raster)[0], 'legend.txt')
+        
+        with open(legend_txt, 'w') as f:
+            f.write("%s\n" % '0: True Negative')
+            f.write("%s\n" % '1: False Negative')
+            f.write("%s\n" % '2: False Positive')
+            f.write("%s\n" % '3: True Positive')
+            f.write("%s\n" % '4: Exluded Area: Catchment excluded from contingency metric analysis because it is either a waterbody or there is no valid crosswalk.')
                           
     # Store summed pixel counts in dictionary.
     contingency_table_dictionary.update({'total_area':{'true_negatives': int((agreement_array == 0).sum()),

@@ -24,12 +24,12 @@ if __name__ == '__main__':
     for test_id in test_cases_dir_list:
         if 'validation' not in test_id:
             print("Backfilling " + test_id + "...")
-            
+                        
             for return_interval in ['100yr', '500yr']:
                 print("---------> " + return_interval)
                 current_huc = test_id.split('_')[0]
                 
-                for branch_name in previous_fim_list:
+                for branch_name in PREVIOUS_FIM_DIR:
                     print(("---------> " + branch_name))
                     huc6 = test_id[:6]
                     

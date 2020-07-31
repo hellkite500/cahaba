@@ -359,6 +359,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         
         shutil.copytree(branch_name_dir, destination_dir)
         shutil.rmtree(branch_name_dir)
+        shutil.rmtree(os.path.split(branch_name_dir)[0])
         
 
 if __name__ == '__main__':
