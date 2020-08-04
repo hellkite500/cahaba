@@ -13,9 +13,9 @@ from inundation import inundate
 
 TEST_CASES_DIR = r'/data/test_cases/'  # Will update.
 INPUTS_DIR = r'/data/inputs'
-SUMMARY_STATS = ['csi', 'pod', 'far', 'MCC', 'bias', 'true_negatives', 'false_negatives', 'true_positives', 'false_positives', ]
-GO_UP_STATS = ['csi', 'pod', 'MCC', 'true_negatives', 'true_positives', 'percent_correct']
-GO_DOWN_STATS = ['far', 'false_negatives', 'false_positives', 'bias']
+PRINTWORTHY_STATS = ['csi', 'pod', 'far', 'TNR', 'MCC', 'bias', 'TP_perc', 'FP_perc', 'TN_perc', 'FN_perc', 'area']
+GO_UP_STATS = ['csi', 'pod', 'MCC', 'TN_perc', 'TP_perc', 'percent_correct', 'TNR']
+GO_DOWN_STATS = ['far', 'FN_perc', 'FP_perc', 'bias']
 OUTPUTS_DIR = os.environ['outputDataDir']
 
 ENDC = '\033[m'
@@ -255,8 +255,8 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                 header.append(branch_name)
                 text_block.append(header)
                 
-                # Loop through stats in SUMMARY_STATS for left.
-                for stat in SUMMARY_STATS:
+                # Loop through stats in PRINTWORTHY_STATS for left.
+                for stat in PRINTWORTHY_STATS:
                     stat_line = [stat]
                     for previous_version, paths in archive_dictionary.items():
                         # Load stats for previous version.
@@ -301,12 +301,12 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                         print("--------------------------------------------------------------------------------------------------")
                     print()
                     stats_mode = first_item
-                    print(CYAN_BOLD + current_huc)
-                    print(CYAN_BOLD + stats_mode.upper().replace('_', ' ') + ": " + return_interval.upper(), ENDC)
+                    print(CYAN_BOLD + current_huc + ": " + return_interval.upper(), ENDC)
+                    print(CYAN_BOLD + stats_mode.upper().replace('_', ' ') + " METRICS" + ENDC)
                     print()
                 
                     color = WHITE_BOLD
-                    metric_name = '      '.center(len(max(SUMMARY_STATS, key=len)))
+                    metric_name = '      '.center(len(max(PRINTWORTHY_STATS, key=len)))
                     percent_change_header = '% CHG'
                     difference_header = 'DIFF'
                     current_version_header = line[current_version_index].upper()
@@ -314,8 +314,8 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                     # Print Header.
                     print(color + metric_name + "      " + percent_change_header.center((7)) + "       " + difference_header.center((15))  + "    " + current_version_header.center(18) + " " + last_version_header.center(18), ENDC)
                 # Format and print stat row.
-                elif first_item in SUMMARY_STATS:
-                    stat_name = first_item.upper().center(len(max(SUMMARY_STATS, key=len))).replace('_', ' ')
+                elif first_item in PRINTWORTHY_STATS:
+                    stat_name = first_item.upper().center(len(max(PRINTWORTHY_STATS, key=len))).replace('_', ' ')
                     current_version = round((line[current_version_index]), 3)
                     last_version = round((line[last_version_index]) + 0.000, 3)
                     difference = round(current_version - last_version, 3)
@@ -340,7 +340,10 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                         symbol, color = '+', TGREEN
                     percent_change = round((difference / last_version)*100,2)
                     
-                    print(WHITE_BOLD + stat_name + "     " + color + (symbol + " {:5.2f}".format(abs(percent_change)) + " %").rjust(len(percent_change_header)), ENDC + "    " + color + ("{:12.3f}".format((difference))).rjust(len(difference_header)), ENDC + "    " + "{:15.3f}".format(current_version).rjust(len(current_version_header)) + "   " + "{:15.3f}".format(last_version).rjust(len(last_version_header)) + "  ")
+                    print(WHITE_BOLD + stat_name + ENDC + "     " + color + (symbol + " {:5.2f}".format(abs(percent_change)) + " %").rjust(len(percent_change_header)), ENDC + "    " + color + ("{:12.3f}".format((difference))).rjust(len(difference_header)), ENDC + "    " + "{:15.3f}".format(current_version).rjust(len(current_version_header)) + "   " + "{:15.3f}".format(last_version).rjust(len(last_version_header)) + "  ")
+            
+            print()
+            print("Area units are square kilometers.")
         
             print()
             print()
@@ -357,7 +360,11 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         branch_name_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch_name, return_interval)
         destination_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions', branch_name, return_interval)
         
-        shutil.copytree(branch_name_dir, destination_dir)
+        try:
+            shutil.copytree(branch_name_dir, destination_dir)
+        except FileExistsError:
+            shutil.rmtree(destination_dir)
+            shutil.copytree(branch_name_dir, destination_dir)
         shutil.rmtree(branch_name_dir)
         shutil.rmtree(os.path.split(branch_name_dir)[0])
         
@@ -378,7 +385,6 @@ if __name__ == '__main__':
     # Extract to dictionary and assign to variables.
     args = vars(parser.parse_args())
     
-    # TEMPORARY CODE
     valid_test_id_list = os.listdir(TEST_CASES_DIR)
 
     exit_flag = False  # Default to False.

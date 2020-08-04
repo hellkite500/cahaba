@@ -21,7 +21,7 @@ if __name__ == '__main__':
     
     previous_fim_list = os.listdir(PREVIOUS_FIM_DIR)
         
-    for test_id in test_cases_dir_list:
+    for test_id in TEST_CASES_DIR:
         if 'validation' not in test_id:
             print("Backfilling " + test_id + "...")
                         

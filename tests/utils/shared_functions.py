@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 
-    
 def compute_stats_from_contingency_table(true_negatives, false_negatives, false_positives, true_positives, cell_area=None):
     """
     This generic function takes contingency table metrics as arguments and returns a dictionary of contingency table statistics.
@@ -48,12 +47,14 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     obsNegative = true_negatives + false_positives
     
     # This checks if a cell_area has been provided, thus making areal calculations possible.
+    multiplier = 10000
+    
     if cell_area != None:
-        TP_area = true_positives * cell_area
-        FP_area = false_positives * cell_area
-        TN_area = true_negatives * cell_area
-        FN_area = false_negatives * cell_area
-        total_area = total_population * cell_area
+        TP_area = (true_positives * cell_area) / (cell_area*multiplier)
+        FP_area = (false_positives * cell_area) / (cell_area*multiplier)
+        TN_area = (true_negatives * cell_area) / (cell_area*multiplier)
+        FN_area = (false_negatives * cell_area) / (cell_area*multiplier)
+        area = (total_population * cell_area) / (cell_area*multiplier)
         
         predPositive_area = predPositive * cell_area
         predNegative_area = predNegative * cell_area
@@ -68,7 +69,7 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
         FP_area = None
         TN_area = None
         FN_area = None
-        total_area = None
+        area = None
         
         predPositive_area = None
         predNegative_area = None
@@ -109,7 +110,7 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
                         'FP_perc': FP_perc,
                         'TN_perc': TN_perc,
                         'FN_perc': FN_perc,
-                        'total_area': total_area,
+                        'area': area,
                         'prevalence': prevalence,
                         'predPositive_perc': predPositive_perc,
                         'predNegative_perc': predNegative_perc,
@@ -128,7 +129,11 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
                         'ACC': ACC,
                         'F1_score': F1_score,
                         'Bal_ACC': Bal_ACC,
-                        'MCC': MCC
+                        'MCC': MCC,
+                        'TP_area': TP_area,
+                        'FP_area': FP_area,
+                        'TN_area': TN_area,
+                        'FN_area': FN_area,
                         }
 
     return stats_dictionary
