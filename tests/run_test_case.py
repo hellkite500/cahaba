@@ -7,15 +7,16 @@ import rasterio
 import json
 import csv
 import argparse
+import shutil
 
 from utils.shared_functions import get_contingency_table_from_binary_rasters, compute_stats_from_contingency_table
 from inundation import inundate
 
 TEST_CASES_DIR = r'/data/test_cases/'  # Will update.
 INPUTS_DIR = r'/data/inputs'
-PRINTWORTHY_STATS = ['csi', 'pod', 'far', 'TNR', 'MCC', 'bias', 'TP_perc', 'FP_perc', 'TN_perc', 'FN_perc', 'area']
-GO_UP_STATS = ['csi', 'pod', 'MCC', 'TN_perc', 'TP_perc', 'percent_correct', 'TNR']
-GO_DOWN_STATS = ['far', 'FN_perc', 'FP_perc', 'bias']
+PRINTWORTHY_STATS = ['csi', 'pod', 'far', 'TNR', 'MCC', 'TP_area', 'FP_area', 'TN_area', 'FN_area', 'TP_perc', 'FP_perc', 'TN_perc', 'FN_perc','area']
+GO_UP_STATS = ['csi', 'pod', 'MCC', 'TN_area', 'TP_area', 'TN_perc', 'TP_perc', 'percent_correct', 'TNR']
+GO_DOWN_STATS = ['far', 'FN_area', 'FP_area', 'FP_perc', 'FN_perc']
 OUTPUTS_DIR = os.environ['outputDataDir']
 
 ENDC = '\033[m'
@@ -46,6 +47,11 @@ def profile_test_case_archive(archive_to_check, return_interval, stats_mode):
     
     # List through previous version and check for available stats and maps. If available, add to dictionary.
     available_versions_list = os.listdir(archive_to_check)
+    
+    if len(available_versions_list) == 0:
+        print("Cannot compare with -c flag because there are no data in the previous_versions directory.")
+        return
+    
     for version in available_versions_list:
         version_return_interval_dir = os.path.join(archive_to_check, version, return_interval)
         # Initialize dictionary for version and set paths to None by default.
@@ -125,9 +131,6 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
     
         stats_dictionary.update({stats_mode: mode_stats_dictionary})
         
-        
-    # Write summary CSV for humans.
-        
     return stats_dictionary
     
 
@@ -149,6 +152,18 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
 
 def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=False, legacy_fim_run_dir=False):
         
+    
+    # Construct paths to development test results if not existent.
+    if archive_results:
+        branch_test_case_dir_parent = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions', branch_name)
+    else:
+        branch_test_case_dir_parent = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch_name)
+    
+    # Delete the entire directory if it already exists.
+    if os.path.exists(branch_test_case_dir_parent):
+        shutil.rmtree(branch_test_case_dir_parent)
+    
+    
     print("Running the alpha test for test_id: " + test_id + "...")
     stats_modes_list = ['total_area']
     if run_structure_stats: stats_modes_list.append('structures')
@@ -207,11 +222,11 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         if not os.path.exists(benchmark_raster_path):  # Skip loop instance if the benchmark raster doesn't exist.
             continue
         
-        # Construct paths to development test results if not existent.
-        branch_test_case_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch_name, return_interval)
-        if not os.path.exists(branch_test_case_dir):
-            os.makedirs(branch_test_case_dir)
-        
+        branch_test_case_dir = os.path.join(branch_test_case_dir_parent, return_interval)
+
+        os.makedirs(branch_test_case_dir)
+            
+
         # Define paths to inundation_raster and forecast file.
         inundation_raster = os.path.join(branch_test_case_dir, 'inundation_extent.tif')
         forecast = os.path.join(TEST_CASES_DIR, 'validation_data_' + benchmark_category, current_huc, return_interval, benchmark_category + '_huc_' + current_huc + '_flows_' + return_interval + '.csv')
@@ -229,7 +244,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     
         # Define outputs for agreement_raster, stats_json, and stats_csv.
         
-        agreement_raster, stats_json, stats_csv = os.path.join(branch_test_case_dir, 'total_agreement.tif'), os.path.join(branch_test_case_dir, 'stats.json'), os.path.join(branch_test_case_dir, 'stats.csv')
+        agreement_raster, stats_json, stats_csv = os.path.join(branch_test_case_dir, 'total_area_agreement.tif'), os.path.join(branch_test_case_dir, 'stats.json'), os.path.join(branch_test_case_dir, 'stats.csv')
             
         test_version_dictionary = compute_contingency_stats_from_rasters(predicted_raster_path, 
                                                                          benchmark_raster_path, 
@@ -240,7 +255,10 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                                                                          stats_modes_list=stats_modes_list,
                                                                          test_id=test_id,
                                                                          )
-        
+        print(" ")
+        print("Evaluation complete. All metrics for " + test_id + ", " + branch_name + ", " + return_interval + " are available at " + CYAN_BOLD + branch_test_case_dir + ENDC)
+        print(" ") 
+
         if compare_to_previous:
             text_block = []
             # Compare to previous stats files that are available.    
@@ -248,6 +266,9 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
             for stats_mode in stats_modes_list:
                 archive_dictionary = profile_test_case_archive(archive_to_check, return_interval, stats_mode)
                 
+                if archive_dictionary == {}:
+                    break
+
                 # Create header for section.
                 header = [stats_mode]
                 for previous_version, paths in archive_dictionary.items():
@@ -282,14 +303,20 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
             print("--------------------------------------------------------------------------------------------------")
 
             stats_mode = stats_modes_list[0]
-            
+                        
             try:
                 last_version_index = text_block[0].index('dev_latest')
-            except:
+            except ValueError:
                 try:
                     last_version_index = text_block[0].index('fim_2_3_3')
-                except:
-                    last_version_index = text_block[0].index('fim_1_0_0')
+                except ValueError:
+                    try:
+                        last_version_index = text_block[0].index('fim_1_0_0')
+                    except ValueError:
+                        print(TRED_BOLD + "Warning: " + ENDC + "Cannot compare " + branch_name + " to a previous version because no authoritative versions were found in previous_versions directory. Future version of run_test_case may allow for comparisons between dev branches.")
+                        print()
+                        continue
+
             current_version_index = text_block[0].index(branch_name)
             
             for line in text_block:
@@ -350,24 +377,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
             print("--------------------------------------------------------------------------------------------------")
             print()
                             
-        print("Evaluation complete. All metrics for " + test_id + ", " + branch_name + ", " + return_interval + " are available at " + CYAN_BOLD + branch_test_case_dir + ENDC)
-        print(" ")
-    
-    if archive_results:
-        print("Copying outputs to the 'previous_version' archive for " + test_id + "...")
-        print()
-        import shutil
-        branch_name_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch_name, return_interval)
-        destination_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions', branch_name, return_interval)
-        
-        try:
-            shutil.copytree(branch_name_dir, destination_dir)
-        except FileExistsError:
-            shutil.rmtree(destination_dir)
-            shutil.copytree(branch_name_dir, destination_dir)
-        shutil.rmtree(branch_name_dir)
-        shutil.rmtree(os.path.split(branch_name_dir)[0])
-        
+
 
 if __name__ == '__main__':
     
@@ -380,7 +390,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--compare-to-previous', help='Compare to previous versions of HAND.', required=False,action='store_true')
     parser.add_argument('-s', '--run-structure-stats', help='Create contingency stats at structures.', required=False,action='store_true')
     parser.add_argument('-a', '--archive-results', help='Automatically copy results to the "previous_version" archive for test_id. For admin use only.', required=False,action='store_true')
-    parser.add_argument('-l','--legacy-fim-run-dir',help='If set, the -b argument name is redirected to historical fim_run output data dir.',required=False, action='store_true')
+#    parser.add_argument('-l','--legacy-fim-run-dir',help='If set, the -b argument name is redirected to historical fim_run output data dir.',required=False, action='store_true')
     
     # Extract to dictionary and assign to variables.
     args = vars(parser.parse_args())
@@ -389,6 +399,10 @@ if __name__ == '__main__':
 
     exit_flag = False  # Default to False.
     print()
+    
+    if args['run_structure_stats']:
+        print("Run structure stats (-c) not yet supported.")
+        run_structure_stats = False
     
     # Ensure test_id is valid.
     if args['test_id'] not in valid_test_id_list:
