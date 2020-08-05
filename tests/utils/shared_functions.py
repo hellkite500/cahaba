@@ -46,6 +46,12 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     obsPositive = true_positives + false_negatives
     obsNegative = true_negatives + false_positives
     
+    TP = float(true_positives)
+    TN = float(true_negatives)
+    FN = float(false_negatives)
+    FP = float(false_positives)
+    MCC = (TP*TN - FP*FN)/ np.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN))
+    
     # This checks if a cell_area has been provided, thus making areal calculations possible.
     multiplier = 10000
     
@@ -61,7 +67,6 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
         obsPositive_area =  obsPositive * cell_area
         obsNegative_area =  obsNegative * cell_area
         positiveDiff_area = predPositive_area - obsPositive_area
-        MCC = (TP_area*TN_area - FP_area*FN_area)/ np.sqrt((TP_area+FP_area)*(TP_area+FN_area)*(TN_area+FP_area)*(TN_area+FN_area))
 
     # If no cell_area is provided, then the contingeny tables are likely not derived from areal analysis.
     else:

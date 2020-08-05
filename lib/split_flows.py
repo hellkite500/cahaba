@@ -63,6 +63,10 @@ if lakes is not None:
       flows = gpd.overlay(flows, lakes, how='union').explode().reset_index(drop=True)
 
 print ('splitting ' + str(len(flows)) + ' stream segments based on ' + str(maxLength) + ' m max length')
+
+# remove empty geometries
+flows = flows.loc[~flows.is_empty,:]
+
 for i,lineString in tqdm(enumerate(flows.geometry),total=len(flows.geometry)):      
 #for i,lineString in enumerate(flows.geometry):      
   # Reverse geometry order (necessary for BurnLines)
@@ -229,41 +233,3 @@ split_points_gdf.to_file(split_points_fileName,driver='GPKG',index=False)
 #
 #     return(intersectionPoints,intersectionPoints_geometries)
 
-# def findHeadWaterPoints(flows):
-#
-#     headwater_points = np.array([],dtype=np.object)
-#     starting_points = set() ; end_points = set()
-#     for i,g in enumerate(flows.geometry):
-#
-#         g_points = [(x,y) for x,y in zip(*g.coords.xy)]
-#
-#         starting_point = g_points[0]
-#         end_point = g_points[-1]
-#
-#         starting_points.add(starting_point)
-#         end_points.add(end_point)
-#
-#         # line_points = np.append(line_points,g_points)
-#
-#     for i,sp in enumerate(starting_points):
-#         if sp not in end_points:
-#             headwater_points = np.append(headwater_points,sp)
-#
-#     print(headwater_points)
-#     headwater_points_geometries = np.array([Point(*hwp) for hwp in headwater_points],dtype=np.object)
-#
-#     return(headwater_points,headwater_points_geometries)
-
-# points,point_geometries = findIntersectionPoints(flows)
-# points_gdf = gpd.GeoDataFrame(gpd.GeoSeries(point_geometries,crs=flows.crs,name='geometry'),crs=flows.crs)
-
-# print(points_gdf)
-# print(len(points_gdf))
-
-# points_gdf.to_file('test.gpkg',driver='GPKG')
-
-# hw_points, hw_geom = findHeadWaterPoints(flows)
-# print(hw_geom)
-#
-# hw_gdf = gpd.GeoDataFrame(gpd.GeoSeries(hw_geom,crs=flows.crs,name='geometry'),crs=flows.crs)
-# hw_gdf.to_file('hw_test.gpkg',driver='GPKG')

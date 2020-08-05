@@ -26,7 +26,6 @@ def inundate(
              num_workers=1,aggregate=False,inundation_raster=None,inundation_polygon=None,
              depths=None,out_raster_profile=None,out_vector_profile=None,quiet=False
             ):
-    
     """
 
     Run inundation on FIM >=3.0 outputs at job-level scale or aggregated scale
@@ -174,7 +173,12 @@ def inundate(
         except Exception as exc:
             __vprint("Exception {} for {}".format(exc,results[future]),not quiet)
         else:
-            __vprint("... {} complete".format(results[future]),not quiet)
+
+            if results[future] is not None:
+                __vprint("... {} complete".format(results[future]),not quiet)
+            else:
+                __vprint("... complete",not quiet)
+
             inundation_rasters += [future.result()[0]]
             depth_rasters += [future.result()[1]]
             inundation_polys += [future.result()[2]]
@@ -463,7 +467,6 @@ def __subset_hydroTable_to_forecast(hydroTable,forecast,subset_hucs=None):
                     subset_hucs = open(subset_hucs).read().split('\n')
                 except FileNotFoundError:
                     subset_hucs = [subset_hucs]
-                    pass
 
         # subsets HUCS
         subset_hucs_orig = subset_hucs.copy() ; subset_hucs = []
