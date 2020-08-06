@@ -144,7 +144,7 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     return stats_dictionary
 
 
-def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster=None, mask_values=None, additional_layers_dict={}):
+def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster=None, mask_values=None, additional_layers_dict={}, exclusion_mask=""):
     """
     Produces contingency table from 2 rasters and returns it. Also exports an agreement raster classified as:
         0: True Negatives
@@ -200,16 +200,42 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
     
     benchmark_array = np.where(benchmark_array==benchmark_src.nodata, 10, benchmark_array)  # Reclassify NoData to 10
 
-    # Create agreement_array in memory.
-    agreement_array = np.add(benchmark_array, 2*predicted_array)
     
-    # Mask agreement array according to mask catchments.
-    for value in mask_values:
-        agreement_array = np.where(np.absolute(predicted_array_raw) == int(value), 4, agreement_array)
+#    # Mask agreement array according to mask catchments.
+#    for value in mask_values:
+#        agreement_array = np.where(np.absolute(predicted_array_raw) == int(value), 4, agreement_array)
         
+
+    agreement_array = np.add(benchmark_array, 2*predicted_array)
     agreement_array = np.where(agreement_array>4, 10, agreement_array)
     
     del benchmark_src, benchmark_array, predicted_array, predicted_array_raw
+
+    # Mask agreement_array with waterbody raster 100m buffer.
+    if exclusion_mask != "":
+        exclusion_src = rasterio.open(exclusion_mask)
+    
+        exclusion_src = rasterio.open(exclusion_mask)
+        
+        exclusion_array_original = exclusion_src.read(1)
+        exclusion_array = np.empty(agreement_array.shape, dtype=np.int8)
+                
+        print("-----> Masking waterbodies...")
+        reproject(exclusion_array_original, 
+                  destination = exclusion_array,
+                  src_transform = exclusion_src.transform, 
+                  src_crs = exclusion_src.crs,
+                  src_nodata = exclusion_src.nodata,
+                  dst_transform = predicted_src.transform, 
+                  dst_crs = predicted_src.crs,
+                  dst_nodata = exclusion_src.nodata,
+                  dst_resolution = predicted_src.res,
+                  resampling = Resampling.bilinear)
+            
+        exclusion_array = exclusion_src.read(1)
+        
+        # Perform mask.
+        agreement_array = np.where(exclusion_array == 1, 4, agreement_array)
 
     contingency_table_dictionary = {}
     
@@ -222,14 +248,21 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
                 dst.write(agreement_array, 1)
          
         # Write legend text file
-        legend_txt = os.path.join(os.path.split(agreement_raster)[0], 'legend.txt')
+        legend_txt = os.path.join(os.path.split(agreement_raster)[0], 'read_me.txt')
         
+        from datetime import datetime
+        
+        now = datetime.now()
+        current_time = now.strftime("%m/%d/%Y %H:%M:%S")
+                
         with open(legend_txt, 'w') as f:
             f.write("%s\n" % '0: True Negative')
             f.write("%s\n" % '1: False Negative')
             f.write("%s\n" % '2: False Positive')
             f.write("%s\n" % '3: True Positive')
-            f.write("%s\n" % '4: Exluded Area: Catchment excluded from contingency metric analysis because it is either a waterbody or there is no valid crosswalk.')
+            f.write("%s\n" % '4: Exluded Area: Catchment excluded from contingency metric analysis because it is either a waterbody. Waterbody mask: {exclusion_mask}'.format(exclusion_mask=exclusion_mask))
+            f.write("%s\n")
+            f.write("%s\n" % 'Results produced at: {current_time}'.format(current_time=current_time))
                           
     # Store summed pixel counts in dictionary.
     contingency_table_dictionary.update({'total_area':{'true_negatives': int((agreement_array == 0).sum()),
@@ -238,6 +271,8 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
                                                       'true_positives': int((agreement_array == 3).sum())
                                                       }})                               
     
+        
+        
     # Parse through dictionary of other layers and create contingency table metrics for the desired area. Layer must be raster with same shape as agreement_raster.
     if additional_layers_dict != {}:
         for layer_name in additional_layers_dict:

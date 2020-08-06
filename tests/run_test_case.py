@@ -73,7 +73,7 @@ def profile_test_case_archive(archive_to_check, return_interval, stats_mode):
     return archive_dictionary
 
 
-def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster=None, stats_csv=None, stats_json=None, mask_values=None, stats_modes_list=['total_area'], test_id=''):
+def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_raster_path, agreement_raster=None, stats_csv=None, stats_json=None, mask_values=None, stats_modes_list=['total_area'], test_id='', exclusion_mask=''):
     """
     This function contains FIM-specific logic to prepare raster datasets for use in the generic get_contingency_table_from_binary_rasters() function.
     This function also calls the generic compute_stats_from_contingency_table() function and writes the results to CSV and/or JSON, depending on user input.
@@ -104,7 +104,7 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
                 additional_layers_dict.update({stats_mode: additional_layer_path})
     
     # Get contingency table from two rasters.
-    contingency_table_dictionary = get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster, mask_values=mask_values, additional_layers_dict=additional_layers_dict)
+    contingency_table_dictionary = get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster, mask_values=mask_values, additional_layers_dict=additional_layers_dict, exclusion_mask=exclusion_mask)
     
     stats_dictionary = {}
     
@@ -150,7 +150,7 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
     return difference_dict
     
 
-def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=False, legacy_fim_run_dir=False):
+def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=False, legacy_fim_run_dir=False, waterbody_mask_technique=''):
         
     
     # Construct paths to development test results if not existent.
@@ -162,7 +162,6 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     # Delete the entire directory if it already exists.
     if os.path.exists(branch_test_case_dir_parent):
         shutil.rmtree(branch_test_case_dir_parent)
-    
     
     print("Running the alpha test for test_id: " + test_id + "...")
     stats_modes_list = ['total_area']
@@ -183,32 +182,51 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     hucs, hucs_layerName = os.path.join(INPUTS_DIR, 'wbd', 'WBD_National.gpkg'), 'WBDHU8'
     hydro_table = os.path.join(fim_run_parent, 'hydroTable.csv')
     
-    # Crosswalk feature_ids to hydroids.
-    hydro_table_data = pd.read_csv(hydro_table, header=0)
-    ht_feature_id_list = list(hydro_table_data.feature_id)
-    ht_hydro_id_list = list(hydro_table_data.HydroID)
-    lake_id_list = list(hydro_table_data.LakeID)
-    
-    # Get list of feature_ids_to_mask.    
-    feature_ids_to_mask = []
-    for f in range(0, len(lake_id_list)):
-        if lake_id_list[f] != -999:
-            lake_feature_id = ht_feature_id_list[f]
-            if lake_feature_id not in feature_ids_to_mask:
-                feature_ids_to_mask.append(lake_feature_id)
+#    # Crosswalk feature_ids to hydroids.
+#    hydro_table_data = pd.read_csv(hydro_table, header=0)
+#    ht_feature_id_list = list(hydro_table_data.feature_id)
+#    ht_hydro_id_list = list(hydro_table_data.HydroID)
+#    lake_id_list = list(hydro_table_data.LakeID)
+#    
+#    # Get list of feature_ids_to_mask.    
+#    feature_ids_to_mask = []
+#    for f in range(0, len(lake_id_list)):
+#        if lake_id_list[f] != -999:
+#            lake_feature_id = ht_feature_id_list[f]
+#            if lake_feature_id not in feature_ids_to_mask:
+#                feature_ids_to_mask.append(lake_feature_id)
 
     # Remove duplicates and create list of hydro_ids to use as waterbody mask.
-    reduced_ht_feature_id_list, reduced_ht_hydro_id_list, hydro_ids_to_mask = [], [], []
-
-    for i in range(0, len(ht_hydro_id_list)):
-        if ht_hydro_id_list[i] not in reduced_ht_hydro_id_list:
-            reduced_ht_hydro_id_list.append(ht_hydro_id_list[i])
-            reduced_ht_feature_id_list.append(ht_feature_id_list[i])
-    for i in range(0, len(reduced_ht_feature_id_list)):
-        ht_feature_id = reduced_ht_feature_id_list[i]
-        ht_hydro_id = reduced_ht_hydro_id_list[i]
-        if ht_feature_id in feature_ids_to_mask:
-            hydro_ids_to_mask.append(ht_hydro_id)
+#    reduced_ht_feature_id_list, reduced_ht_hydro_id_list, hydro_ids_to_mask = [], [], []
+#
+#    for i in range(0, len(ht_hydro_id_list)):
+#        if ht_hydro_id_list[i] not in reduced_ht_hydro_id_list:
+#            reduced_ht_hydro_id_list.append(ht_hydro_id_list[i])
+#            reduced_ht_feature_id_list.append(ht_feature_id_list[i])
+#    for i in range(0, len(reduced_ht_feature_id_list)):
+#        ht_feature_id = reduced_ht_feature_id_list[i]
+#        ht_hydro_id = reduced_ht_hydro_id_list[i]
+#        if ht_feature_id in feature_ids_to_mask:
+#            hydro_ids_to_mask.append(ht_hydro_id)
+                        
+    waterbody_mask_technique = 'nwm_0'  # TEMPORARY. FORCE 'nwm_0'.
+    
+    if waterbody_mask_technique != '':
+        waterbody_category, waterbody_buffer = waterbody_mask_technique.split('_')[0], waterbody_mask_technique.split('_')[1]
+        if waterbody_category == 'nwm':
+            if waterbody_buffer == '0':
+                waterbody_exclusion_area = os.path.join(TEST_CASES_DIR, test_id, 'additional_layers', 'exclusion_areas', 'nwm_21_lakes_' + current_huc + '.tif')
+            elif waterbody_buffer in ['100', '250', '500']:
+                waterbody_exclusion_area = os.path.join(TEST_CASES_DIR, test_id, 'additional_layers', 'exclusion_areas', 'nwm_21_lakes_buffer_' + waterbody_buffer + 'm_' + current_huc + '.tif')
+        elif waterbody_category == 'nhd':
+            if waterbody_buffer == '0':
+                waterbody_exclusion_area = os.path.join(TEST_CASES_DIR, test_id, 'additional_layers', 'exclusion_areas', 'nhd_lakes_' + current_huc + '.tif')
+            elif waterbody_buffer in ['100', '250', '500']:
+                waterbody_exclusion_area = os.path.join(TEST_CASES_DIR, test_id, 'additional_layers', 'exclusion_areas', 'nhd_lakes_buffer_' + waterbody_buffer + 'm_' + current_huc + '.tif')
+                
+    else:
+        print("No waterbody buffer argument provided. Will not mask waterbody areas from the analysis.")
+        waterbody_exclusion_area = ''
             
     # Check if return interval is list of return intervals or single value.
     return_interval_list = return_interval
@@ -251,9 +269,10 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                                                                          agreement_raster, 
                                                                          stats_csv=stats_csv, 
                                                                          stats_json=stats_json, 
-                                                                         mask_values=hydro_ids_to_mask,
+                                                                         mask_values=[],
                                                                          stats_modes_list=stats_modes_list,
                                                                          test_id=test_id,
+                                                                         exclusion_mask=waterbody_exclusion_area
                                                                          )
         print(" ")
         print("Evaluation complete. All metrics for " + test_id + ", " + branch_name + ", " + return_interval + " are available at " + CYAN_BOLD + branch_test_case_dir + ENDC)
@@ -390,6 +409,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--compare-to-previous', help='Compare to previous versions of HAND.', required=False,action='store_true')
     parser.add_argument('-s', '--run-structure-stats', help='Create contingency stats at structures.', required=False,action='store_true')
     parser.add_argument('-a', '--archive-results', help='Automatically copy results to the "previous_version" archive for test_id. For admin use only.', required=False,action='store_true')
+    parser.add_argument('-w', '--waterbody-mask-technique', help='Define the waterbody masking technique you would like to use. Options include: nhd_0, nhd_100, nhd_250, nhd_500, nwm_0, nwm_100, nwm_250, nwm_500. Format is: dataset_buffer. Buffer distance in meters.', required=False, default='nwm_0')
 #    parser.add_argument('-l','--legacy-fim-run-dir',help='If set, the -b argument name is redirected to historical fim_run output data dir.',required=False, action='store_true')
     
     # Extract to dictionary and assign to variables.
@@ -403,7 +423,20 @@ if __name__ == '__main__':
     if args['run_structure_stats']:
         print("Run structure stats (-c) not yet supported.")
         run_structure_stats = False
+                
+    # NO YOU MUST USE NWM 
+    if args['waterbody_mask_technique'] != 'nwm_0':
+        print(WHITE_BOLD + "For the time being, only the nwm_0 waterbody masking option is available. Waterbody mask will be reset to 'nwm_0' " + ENDC)
     
+#    if args['waterbody_mask_technique'] != '':
+#        if args['waterbody_mask_technique'] not in ['nhd_0', 'nhd_100', 'nhd_250', 'nhd_500', 'nwm_0', 'nwm_100', 'nwm_250', 'nwm_500']:
+#            print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided waterbody_mask_technique (-w) " + CYAN_BOLD + args['waterbody_mask_technique'] + WHITE_BOLD + " is not available." + ENDC)
+#            print(WHITE_BOLD + "Available techniues include: " + ENDC)
+#            for technique in ['nhd_0', 'nhd_100', 'nhd_250', 'nhd_500', 'nwm_0', 'nwm_100', 'nwm_250', 'nwm_500']:
+#                print(CYAN_BOLD + technique + ENDC)
+#            print()
+#            exit_flag = True
+#        
     # Ensure test_id is valid.
     if args['test_id'] not in valid_test_id_list:
         print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided test_id (-t) " + CYAN_BOLD + args['test_id'] + WHITE_BOLD + " is not available." + ENDC)

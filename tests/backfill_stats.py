@@ -28,6 +28,8 @@ if __name__ == '__main__':
             for return_interval in ['100yr', '500yr']:
                 print("---------> " + return_interval)
                 current_huc = test_id.split('_')[0]
+                if current_huc != '12090301':
+                    continue
                 
                 for branch_name in previous_fim_list:
                     print(("---------> " + branch_name))
@@ -56,5 +58,5 @@ if __name__ == '__main__':
                     branch_test_case_dir = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions', branch_name, return_interval)
                     
                     print(("---------> Running alpha test..."))
-                    run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=True, legacy_fim_run_dir=False)
+                    run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=True, legacy_fim_run_dir=False, waterbody_mask_technique='nwm_100')
     
