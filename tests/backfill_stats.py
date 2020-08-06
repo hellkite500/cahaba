@@ -28,8 +28,6 @@ if __name__ == '__main__':
             for return_interval in ['100yr', '500yr']:
                 print("---------> " + return_interval)
                 current_huc = test_id.split('_')[0]
-                if current_huc != '12090301':
-                    continue
                 
                 for branch_name in previous_fim_list:
                     print(("---------> " + branch_name))
