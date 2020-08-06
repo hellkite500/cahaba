@@ -259,7 +259,6 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
             f.write("%s\n" % '2: False Positive')
             f.write("%s\n" % '3: True Positive')
             f.write("%s\n" % '4: Exluded Area: Catchment excluded from contingency metric analysis because it is either a waterbody. Waterbody mask: {exclusion_mask}'.format(exclusion_mask=exclusion_mask))
-            f.write("%s\n")
             f.write("%s\n" % 'Results produced at: {current_time}'.format(current_time=current_time))
                           
     # Store summed pixel counts in dictionary.
