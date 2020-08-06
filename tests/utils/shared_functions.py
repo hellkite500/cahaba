@@ -231,9 +231,7 @@ def get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_r
                   dst_nodata = exclusion_src.nodata,
                   dst_resolution = predicted_src.res,
                   resampling = Resampling.bilinear)
-            
-        exclusion_array = exclusion_src.read(1)
-        
+                    
         # Perform mask.
         agreement_array = np.where(exclusion_array == 1, 4, agreement_array)
 
