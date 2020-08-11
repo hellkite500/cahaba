@@ -116,8 +116,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Preprocess FIM 1 and FIM 2 HAND and Catchment grids to be compatible with FIM 3.')
     parser.add_argument('-c','--catchments-path', help = 'Path to catchments vector file', required = True)
     parser.add_argument('-f', '--raster-value-field', help = 'Attribute ID field from which raster values will be assigned. Typically this will be "HydroID" for FIM2 and "feature_ID" for fim 1.', required = True)
-    parser.add_argument('-hand', '--hand-raster-path', help = 'Path to HAND raster (can be in ESRI GRID format)', required = True)
-    parser.add_argument('-t', '--template-raster,', help = 'Path to a template raster. Properties (CRS, resolution) of the template raster will be used to preprocess HAND and Catchments grids')
+    parser.add_argument('-ha', '--hand-raster-path', help = 'Path to HAND raster (can be in ESRI GRID format)', required = True)
+    parser.add_argument('-t', '--template-raster,', help = 'Path to a template raster. Properties (CRS, resolution) of the template raster will be used to preprocess HAND and Catchments grids', required = True)
     parser.add_argument('-oh', '--out-hand-path', help = 'Path to the output HAND raster. Raster must be named "rem_clipped_zeroed_masked.tif', required = True)
     parser.add_argument('-oc', '--out-catchment-path', help = 'Path to the output Catchment raster. Raster must be named "gw_catchments_reaches_clipped_addedAttributes.tif"', required = True)
     #Extract to dictionary and assign to variables.
