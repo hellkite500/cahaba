@@ -8,10 +8,21 @@ Created on Fri Jul 10 13:10:51 2020
 import os
 
 from run_test_case import run_alpha_test
-
+from multiprocessing import Pool
 
 TEST_CASES_DIR = r'/data/test_cases/'
 PREVIOUS_FIM_DIR = r'/data/previous_fim'
+
+
+def multiprocess_alpha_test(args):
+    
+    fim_run_dir = args[0]
+    branch_name = args[1]
+    test_id = args[2]
+    return_interval = args[3]
+
+    run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=True, legacy_fim_run_dir=False, waterbody_mask_technique='nwm_100')
+    
 
 if __name__ == '__main__':
 
@@ -21,6 +32,7 @@ if __name__ == '__main__':
     
     previous_fim_list = os.listdir(PREVIOUS_FIM_DIR)
         
+    procs_list = []
     for test_id in test_cases_dir_list:
         if 'validation' not in test_id:
             print("Backfilling " + test_id + "...")
@@ -50,7 +62,10 @@ if __name__ == '__main__':
                     
                 if not os.path.exists(development_versions):
                     os.mkdir(development_versions)
-                                    
-                print(("---------> Running alpha test..."))
-                run_alpha_test(fim_run_dir, branch_name, test_id, ['100yr', '500yr'], compare_to_previous=False, run_structure_stats=False, archive_results=True, legacy_fim_run_dir=False, waterbody_mask_technique='nwm_100')
 
+                return_interval = ['100yr', '500yr']
+                procs_list.append([fim_run_dir, branch_name, test_id, return_interval])
+
+
+        pool = Pool(2)
+        pool.map(multiprocess_alpha_test, procs_list)
