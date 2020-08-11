@@ -36,7 +36,8 @@ def preprocess_benchmark_static(benchmark_raster, reference_raster, out_raster_p
     reference = rasterio.open(reference_raster)
     benchmark = rasterio.open(benchmark_raster)
     benchmark_arr = benchmark.read(1)    
-    #Set no data value (keep it integer so we can write to int8 raster)
+
+    #Set arbitrary no data value that is not possible value of the benchmark dataset. This will be reassigned later.
     nodata_value = -2147483648
     
     #Determine the new transform and dimensions of reprojected/resampled raster.
@@ -45,7 +46,7 @@ def preprocess_benchmark_static(benchmark_raster, reference_raster, out_raster_p
     #Define an empty array that is same dimensions as output by the "calculate_default_transform" command. 
     benchmark_projected = np.empty((new_height,new_width), dtype=np.int32)
 
-    #Reproject and resample the benchmark dataset.
+    #Reproject and resample the benchmark dataset. Bilinear resampling due to continuous depth data.
     reproject(benchmark_arr, 
               destination = benchmark_projected,
               src_transform = benchmark.transform, 
