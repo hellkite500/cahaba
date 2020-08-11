@@ -106,7 +106,7 @@ def fimx_to_fim3(catchments_path, raster_value_field, hand_raster_path, template
             with rasterio.open(out_hand_path, 'w', **hand_profile) as hnd_dst:
                 hnd_dst.write(hand_masked.astype('float32'),1)
     if out_catchment_path is not None:
-        os.makedirs(os.path.split(out_catchment_path[0], exist_ok = True))        
+        os.makedirs(os.path.split(out_catchment_path)[0], exist_ok = True)        
         with rasterio.Env():
             with rasterio.open(out_catchment_path, 'w', **catchment_profile) as cat_dst:
                 cat_dst.write(catchment_masked.astype('int32'),1)   
