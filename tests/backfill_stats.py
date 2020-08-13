@@ -34,38 +34,39 @@ if __name__ == '__main__':
         
     procs_list = []
     for test_id in test_cases_dir_list:
-        if 'validation' not in test_id:
-            print("Backfilling " + test_id + "...")
+        if test_id == '12090301_ble':
+            if 'validation' not in test_id:
+                print("Backfilling " + test_id + "...")
+                            
+                current_huc = test_id.split('_')[0]
+                
+                for branch_name in ['fim_1_0_0']:
+                    print(("---------> " + branch_name))
+                    huc6 = test_id[:6]
+                    
+                    fim_run_dir = os.path.join(PREVIOUS_FIM_DIR, branch_name, huc6)
+                    
+                    # Make sure the performance archive and development archive are there.
+                    performance_archive = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive')
+                    additional_layers = os.path.join(TEST_CASES_DIR, test_id, 'additional_layers')
+                    
+                    if not os.path.exists(performance_archive):
+                        os.mkdir(performance_archive)
+                    if not os.path.exists(additional_layers):
+                        os.mkdir(additional_layers)
                         
-            current_huc = test_id.split('_')[0]
-            
-            for branch_name in previous_fim_list:
-                print(("---------> " + branch_name))
-                huc6 = test_id[:6]
-                
-                fim_run_dir = os.path.join(PREVIOUS_FIM_DIR, branch_name, huc6)
-                
-                # Make sure the performance archive and development archive are there.
-                performance_archive = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive')
-                additional_layers = os.path.join(TEST_CASES_DIR, test_id, 'additional_layers')
-                
-                if not os.path.exists(performance_archive):
-                    os.mkdir(performance_archive)
-                if not os.path.exists(additional_layers):
-                    os.mkdir(additional_layers)
+                    previous_versions = os.path.join(performance_archive, 'previous_versions')
+                    development_versions = os.path.join(performance_archive, 'development_versions')
                     
-                previous_versions = os.path.join(performance_archive, 'previous_versions')
-                development_versions = os.path.join(performance_archive, 'development_versions')
-                
-                if not os.path.exists(previous_versions):
-                    os.mkdir(previous_versions)
-                    
-                if not os.path.exists(development_versions):
-                    os.mkdir(development_versions)
-
-                return_interval = ['100yr', '500yr']
-                procs_list.append([fim_run_dir, branch_name, test_id, return_interval])
-
-
-        pool = Pool(2)
-        pool.map(multiprocess_alpha_test, procs_list)
+                    if not os.path.exists(previous_versions):
+                        os.mkdir(previous_versions)
+                        
+                    if not os.path.exists(development_versions):
+                        os.mkdir(development_versions)
+    
+                    return_interval = ['100yr']
+#                    procs_list.append([fim_run_dir, branch_name, test_id, return_interval])
+                    multiprocess_alpha_test([fim_run_dir, branch_name, test_id, return_interval])
+    
+#            pool = Pool(2)
+#            pool.map(multiprocess_alpha_test, procs_list)
