@@ -13,6 +13,7 @@ from multiprocessing import Pool
 
 TEST_CASES_DIR = r'/data/test_cases/'
 PREVIOUS_FIM_DIR = r'/data/previous_fim'
+OUTPUTS_DIR = r'/data/outputs'
 
 
 def process_alpha_test(args):
@@ -65,8 +66,8 @@ if __name__ == '__main__':
                     process_alpha_test([fim_run_dir, branch_name, test_id, return_interval])
 
 
-        if job_number > 1:
-            pool = Pool(job_number)
-            pool.map(process_alpha_test, procs_list)
-        else:
-            pass
+    if job_number > 1:
+        pool = Pool(job_number)
+        pool.map(process_alpha_test, procs_list)
+    else:
+        pass
