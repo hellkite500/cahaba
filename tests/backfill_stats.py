@@ -6,6 +6,7 @@ Created on Fri Jul 10 13:10:51 2020
 """
 
 import os
+import argparse
 
 from run_test_case import run_alpha_test
 from multiprocessing import Pool
@@ -14,7 +15,7 @@ TEST_CASES_DIR = r'/data/test_cases/'
 PREVIOUS_FIM_DIR = r'/data/previous_fim'
 
 
-def multiprocess_alpha_test(args):
+def process_alpha_test(args):
     
     fim_run_dir = args[0]
     branch_name = args[1]
@@ -26,47 +27,46 @@ def multiprocess_alpha_test(args):
 
 if __name__ == '__main__':
 
+    # Parse arguments.
+    parser = argparse.ArgumentParser(description='Caches metrics from previous versions of HAND.')
+    parser.add_argument('-v','--fim-version',help='Name of fim version to cache.',required=False, default="all")
+    parser.add_argument('-j','--job-number',help='Number of processes to use. Default is 1.',required=False, default="1")
+    
     compare_to_previous = False
     
     test_cases_dir_list = os.listdir(TEST_CASES_DIR)
     
-    previous_fim_list = os.listdir(PREVIOUS_FIM_DIR)
-        
+    args = vars(parser.parse_args())
+
+    fim_version = args['fim_version']
+    job_number = int(args['job_number'])
+    
+    if fim_version != "all":
+        previous_fim_list = [fim_version]
+    else:
+        previous_fim_list = os.listdir(PREVIOUS_FIM_DIR)    
+    
     procs_list = []
     for test_id in test_cases_dir_list:
-        if test_id == '12090301_ble':
-            if 'validation' not in test_id:
-                print("Backfilling " + test_id + "...")
-                            
-                current_huc = test_id.split('_')[0]
+        if 'validation' not in test_id:
+            print("Backfilling " + test_id + "...")
+                        
+            current_huc = test_id.split('_')[0]
+            
+            for branch_name in previous_fim_list:
+                huc6 = test_id[:6]
                 
-                for branch_name in ['fim_1_0_0', 'fim_2_3_3']:
-                    print(("---------> " + branch_name))
-                    huc6 = test_id[:6]
-                    
-                    fim_run_dir = os.path.join(PREVIOUS_FIM_DIR, branch_name, huc6)
-                    
-                    # Make sure the performance archive and development archive are there.
-                    performance_archive = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive')
-                    additional_layers = os.path.join(TEST_CASES_DIR, test_id, 'additional_layers')
-                    
-                    if not os.path.exists(performance_archive):
-                        os.mkdir(performance_archive)
-                    if not os.path.exists(additional_layers):
-                        os.mkdir(additional_layers)
-                        
-                    previous_versions = os.path.join(performance_archive, 'previous_versions')
-                    development_versions = os.path.join(performance_archive, 'development_versions')
-                    
-                    if not os.path.exists(previous_versions):
-                        os.mkdir(previous_versions)
-                        
-                    if not os.path.exists(development_versions):
-                        os.mkdir(development_versions)
-    
-                    return_interval = ['100yr']
-#                    procs_list.append([fim_run_dir, branch_name, test_id, return_interval])
-                    multiprocess_alpha_test([fim_run_dir, branch_name, test_id, return_interval])
-    
-#            pool = Pool(2)
-#            pool.map(multiprocess_alpha_test, procs_list)
+                fim_run_dir = os.path.join(PREVIOUS_FIM_DIR, branch_name, huc6)
+                
+                return_interval = ['100yr', '500yr']
+                if job_number > 1:
+                    procs_list.append([fim_run_dir, branch_name, test_id, return_interval])
+                else:
+                    process_alpha_test([fim_run_dir, branch_name, test_id, return_interval])
+
+
+        if job_number > 1:
+            pool = Pool(job_number)
+            pool.map(process_alpha_test, procs_list)
+        else:
+            pass

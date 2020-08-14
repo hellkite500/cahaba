@@ -166,7 +166,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     if os.path.exists(branch_test_case_dir_parent):
         shutil.rmtree(branch_test_case_dir_parent)
     
-    print("Running the alpha test for test_id: " + test_id + "...")
+    print("Running the alpha test for test_id: " + test_id + ", " + branch_name + "...")
     stats_modes_list = ['total_area']
     if run_structure_stats: stats_modes_list.append('structures')
     
