@@ -14,7 +14,7 @@ from inundation import inundate
 
 TEST_CASES_DIR = r'/data/test_cases/'  # Will update.
 INPUTS_DIR = r'/data/inputs'
-PRINTWORTHY_STATS = ['csi', 'TPR', 'far', 'TNR', 'MCC', 'TP_area_km2', 'FP_area_km2', 'TN_area_km2', 'FN_area_km2', 'contingency_tot_area_km2', 'TP_perc', 'FP_perc', 'TN_perc', 'FN_perc']
+PRINTWORTHY_STATS = ['csi', 'TPR', 'TNR', 'far', 'MCC', 'TP_area_km2', 'FP_area_km2', 'TN_area_km2', 'FN_area_km2', 'contingency_tot_area_km2', 'TP_perc', 'FP_perc', 'TN_perc', 'FN_perc']
 GO_UP_STATS = ['csi', 'TPR', 'MCC', 'TN_area_km2', 'TP_area_km2', 'TN_perc', 'TP_perc', 'TNR']
 GO_DOWN_STATS = ['far', 'FN_area_km2', 'FP_area_km2', 'FP_perc', 'FN_perc']
 OUTPUTS_DIR = os.environ['outputDataDir']

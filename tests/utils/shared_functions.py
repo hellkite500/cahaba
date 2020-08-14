@@ -25,21 +25,21 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     total_population = true_negatives + false_negatives + false_positives + true_positives
         
     # Basic stats.
-    percent_correct = (true_positives + true_negatives) / total_population
-    pod             = true_positives / (true_positives + false_negatives)
-    far             = false_positives / (true_positives + false_positives)
-    csi             = true_positives / (true_positives + false_positives + false_negatives)
-    bias            = (true_positives + false_positives) / (true_positives + false_negatives)
+#    percent_correct = ((true_positives + true_negatives) / total_population) * 100
+#    pod             = true_positives / (true_positives + false_negatives)
+    FAR             = false_positives / (true_positives + false_positives)
+    CSI             = true_positives / (true_positives + false_positives + false_negatives)
+    BIAS            = (true_positives + false_positives) / (true_positives + false_negatives)
     
     # Compute equitable threat score (ETS) / Gilbert Score. 
     a_ref = ((true_positives + false_positives)*(true_positives + false_negatives)) / total_population
-    equitable_threat_score = (true_positives - a_ref) / (true_positives - a_ref + false_positives + false_negatives)
+    EQUITABLE_THREAT_SCORE = (true_positives - a_ref) / (true_positives - a_ref + false_positives + false_negatives)
 
     total_population = true_positives + false_positives + true_negatives + false_negatives
-    TP_perc = (true_positives / total_population) * 100
-    FP_perc = (false_positives / total_population) * 100
-    TN_perc = (true_negatives / total_population) * 100
-    FN_perc = (false_negatives / total_population) * 100
+    TP_PERC = (true_positives / total_population) * 100
+    FP_PERC = (false_positives / total_population) * 100
+    TN_PERC = (true_negatives / total_population) * 100
+    FN_PERC = (false_negatives / total_population) * 100
     
     predPositive = true_positives + false_positives
     predNegative = true_negatives + false_negatives
@@ -54,9 +54,9 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     
     if masked_count != None:
         total_pop_and_mask_pop = total_population + masked_count
-        masked_perc = (masked_count / total_pop_and_mask_pop) * 100
+        masked_PERC = (masked_count / total_pop_and_mask_pop) * 100
     else:
-        masked_perc = None
+        masked_PERC = None
     
     # This checks if a cell_area has been provided, thus making areal calculations possible.
     sq_km_converter = 1000000
@@ -72,7 +72,7 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
         predNegative_area = (predNegative * cell_area) / sq_km_converter
         obsPositive_area =  (obsPositive * cell_area) / sq_km_converter
         obsNegative_area =  (obsNegative * cell_area) / sq_km_converter
-        positiveDiff_area = (predPositive_area - obsPositive_area) / sq_km_converter
+        positiveDiff_area = predPositive_area - obsPositive_area
         
         if masked_count != None:
             masked_area = (masked_count * cell_area) / sq_km_converter
@@ -96,12 +96,12 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
         
     total_population = true_positives + false_positives + true_negatives + false_negatives
 
-    predPositive_perc = (predPositive / total_population) * 100
-    predNegative_perc = (predNegative / total_population) * 100
-    obsPositive_perc = (obsPositive / total_population) * 100
-    obsNegative_perc = (obsNegative / total_population) * 100
+    predPositive_PERC = (predPositive / total_population) * 100
+    predNegative_PERC = (predNegative / total_population) * 100
+    obsPositive_PERC = (obsPositive / total_population) * 100
+    obsNegative_PERC = (obsNegative / total_population) * 100
     
-    positiveDiff_perc = predPositive_perc - obsPositive_perc
+    positiveDiff_PERC = predPositive_PERC - obsPositive_PERC
     
     prevalence = (true_positives + false_negatives) / total_population
     PPV = true_positives / predPositive
@@ -130,35 +130,34 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
                         'obsPositive_area_km2': obsPositive_area,
                         'obsNegative_area_km2': obsNegative_area,
                         'positiveDiff_area_km2': positiveDiff_area,
+
+                        'CSI': CSI,
+                        'FAR': FAR,
+                        'TPR': TPR,                        
+                        'TNR': TNR,                        
                         
-                        'pod': round(pod, 3),
-                        'far': round(far, 3),
-                        'csi': round(csi, 3),
-                        'bias': round(bias, 3),
-                        'equitable_threat_score': round(equitable_threat_score, 3), 
-                        'prevalence': prevalence,
                         'PPV': PPV,
                         'NPV': NPV,
-                        'TPR': TPR,
-                        'TNR': TNR,
                         'ACC': ACC,
-                        'F1_score': F1_score,
                         'Bal_ACC': Bal_ACC,
                         'MCC': MCC,
-                        
-                        'percent_correct': round(percent_correct, 3),
-                        'TP_perc': TP_perc,
-                        'FP_perc': FP_perc,
-                        'TN_perc': TN_perc,
-                        'FN_perc': FN_perc,
-                        'predPositive_perc': predPositive_perc,
-                        'predNegative_perc': predNegative_perc,
-                        'obsPositive_perc': obsPositive_perc,
-                        'obsNegative_perc': obsNegative_perc,
-                        'positiveDiff_perc': positiveDiff_perc,
+                        'EQUITABLE_THREAT_SCORE': EQUITABLE_THREAT_SCORE, 
+                        'PREVALENCE': prevalence,
+                        'BIAS': BIAS,
+                        'F1_SCORE': F1_score,
+
+                        'TP_PERC': TP_PERC,
+                        'FP_PERC': FP_PERC,
+                        'TN_PERC': TN_PERC,
+                        'FN_PERC': FN_PERC,
+                        'predPositive_PERC': predPositive_PERC,
+                        'predNegative_PERC': predNegative_PERC,
+                        'obsPositive_PERC': obsPositive_PERC,
+                        'obsNegative_PERC': obsNegative_PERC,
+                        'positiveDiff_PERC': positiveDiff_PERC,
   
                         'masked_count': int(masked_count),
-                        'masked_perc': masked_perc,
+                        'masked_PERC': masked_PERC,
                         'masked_area_km2': masked_area,
                         
                         }
