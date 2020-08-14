@@ -40,7 +40,7 @@ if __name__ == '__main__':
                             
                 current_huc = test_id.split('_')[0]
                 
-                for branch_name in ['fim_1_0_0']:
+                for branch_name in ['fim_1_0_0', 'fim_2_3_3']:
                     print(("---------> " + branch_name))
                     huc6 = test_id[:6]
                     
