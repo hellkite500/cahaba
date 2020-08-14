@@ -25,7 +25,7 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     total_population = true_negatives + false_negatives + false_positives + true_positives
         
     # Basic stats.
-#    percent_correct = ((true_positives + true_negatives) / total_population) * 100
+#    Percent_correct = ((true_positives + true_negatives) / total_population) * 100
 #    pod             = true_positives / (true_positives + false_negatives)
     FAR             = false_positives / (true_positives + false_positives)
     CSI             = true_positives / (true_positives + false_positives + false_negatives)
@@ -36,10 +36,10 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     EQUITABLE_THREAT_SCORE = (true_positives - a_ref) / (true_positives - a_ref + false_positives + false_negatives)
 
     total_population = true_positives + false_positives + true_negatives + false_negatives
-    TP_PERC = (true_positives / total_population) * 100
-    FP_PERC = (false_positives / total_population) * 100
-    TN_PERC = (true_negatives / total_population) * 100
-    FN_PERC = (false_negatives / total_population) * 100
+    TP_perc = (true_positives / total_population) * 100
+    FP_perc = (false_positives / total_population) * 100
+    TN_perc = (true_negatives / total_population) * 100
+    FN_perc = (false_negatives / total_population) * 100
     
     predPositive = true_positives + false_positives
     predNegative = true_negatives + false_negatives
@@ -54,9 +54,9 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
     
     if masked_count != None:
         total_pop_and_mask_pop = total_population + masked_count
-        masked_PERC = (masked_count / total_pop_and_mask_pop) * 100
+        masked_perc = (masked_count / total_pop_and_mask_pop) * 100
     else:
-        masked_PERC = None
+        masked_perc = None
     
     # This checks if a cell_area has been provided, thus making areal calculations possible.
     sq_km_converter = 1000000
@@ -96,12 +96,12 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
         
     total_population = true_positives + false_positives + true_negatives + false_negatives
 
-    predPositive_PERC = (predPositive / total_population) * 100
-    predNegative_PERC = (predNegative / total_population) * 100
-    obsPositive_PERC = (obsPositive / total_population) * 100
-    obsNegative_PERC = (obsNegative / total_population) * 100
+    predPositive_perc = (predPositive / total_population) * 100
+    predNegative_perc = (predNegative / total_population) * 100
+    obsPositive_perc = (obsPositive / total_population) * 100
+    obsNegative_perc = (obsNegative / total_population) * 100
     
-    positiveDiff_PERC = predPositive_PERC - obsPositive_PERC
+    positiveDiff_perc = predPositive_perc - obsPositive_perc
     
     prevalence = (true_positives + false_negatives) / total_population
     PPV = true_positives / predPositive
@@ -116,7 +116,7 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
                         'false_negatives_count': int(false_negatives),
                         'true_positives_count': int(true_positives),
                         'false_positives_count': int(false_positives),
-                        'contingency_metric_total_count': int(total_population),
+                        'contingency_tot_count': int(total_population),
                         'cell_area_m2': cell_area,
                         
                         'TP_area_km2': TP_area,
@@ -124,7 +124,7 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
                         'TN_area_km2': TN_area,
                         'FN_area_km2': FN_area,
 
-                        'contingency_metric_total_area_km2': area,
+                        'contingency_tot_area_km2': area,
                         'predPositive_area_km2': predPositive_area,
                         'predNegative_area_km2': predNegative_area,
                         'obsPositive_area_km2': obsPositive_area,
@@ -146,18 +146,18 @@ def compute_stats_from_contingency_table(true_negatives, false_negatives, false_
                         'BIAS': BIAS,
                         'F1_SCORE': F1_score,
 
-                        'TP_PERC': TP_PERC,
-                        'FP_PERC': FP_PERC,
-                        'TN_PERC': TN_PERC,
-                        'FN_PERC': FN_PERC,
-                        'predPositive_PERC': predPositive_PERC,
-                        'predNegative_PERC': predNegative_PERC,
-                        'obsPositive_PERC': obsPositive_PERC,
-                        'obsNegative_PERC': obsNegative_PERC,
-                        'positiveDiff_PERC': positiveDiff_PERC,
+                        'TP_perc': TP_perc,
+                        'FP_perc': FP_perc,
+                        'TN_perc': TN_perc,
+                        'FN_perc': FN_perc,
+                        'predPositive_perc': predPositive_perc,
+                        'predNegative_perc': predNegative_perc,
+                        'obsPositive_perc': obsPositive_perc,
+                        'obsNegative_perc': obsNegative_perc,
+                        'positiveDiff_perc': positiveDiff_perc,
   
                         'masked_count': int(masked_count),
-                        'masked_PERC': masked_PERC,
+                        'masked_perc': masked_perc,
                         'masked_area_km2': masked_area,
                         
                         }

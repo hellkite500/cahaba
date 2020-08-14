@@ -14,9 +14,9 @@ from inundation import inundate
 
 TEST_CASES_DIR = r'/data/test_cases/'  # Will update.
 INPUTS_DIR = r'/data/inputs'
-PRINTWORTHY_STATS = ['csi', 'TPR', 'TNR', 'far', 'MCC', 'TP_area_km2', 'FP_area_km2', 'TN_area_km2', 'FN_area_km2', 'contingency_tot_area_km2', 'TP_perc', 'FP_perc', 'TN_perc', 'FN_perc']
-GO_UP_STATS = ['csi', 'TPR', 'MCC', 'TN_area_km2', 'TP_area_km2', 'TN_perc', 'TP_perc', 'TNR']
-GO_DOWN_STATS = ['far', 'FN_area_km2', 'FP_area_km2', 'FP_perc', 'FN_perc']
+PRINTWORTHY_STATS = ['CSI', 'TPR', 'TNR', 'FAR', 'MCC', 'TP_area_km2', 'FP_area_km2', 'TN_area_km2', 'FN_area_km2', 'contingency_tot_area_km2', 'TP_perc', 'FP_perc', 'TN_perc', 'FN_perc']
+GO_UP_STATS = ['CSI', 'TPR', 'MCC', 'TN_area_km2', 'TP_area_km2', 'TN_perc', 'TP_perc', 'TNR']
+GO_DOWN_STATS = ['FAR', 'FN_area_km2', 'FP_area_km2', 'FP_perc', 'FN_perc']
 OUTPUTS_DIR = os.environ['outputDataDir']
 
 ENDC = '\033[m'
@@ -94,10 +94,7 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
     t = raster.transform
     cell_x = t[0]
     cell_y = t[4]
-    print(cell_x)
-    print(cell_y)
     cell_area = abs(cell_x*cell_y)
-    print(cell_area)
         
     additional_layers_dict = {}
     # Create path to additional_layer. Could put conditionals here to create path according to some version. Simply use stats_mode for now. Must be raster.
@@ -112,9 +109,7 @@ def compute_contingency_stats_from_rasters(predicted_raster_path, benchmark_rast
     contingency_table_dictionary = get_contingency_table_from_binary_rasters(benchmark_raster_path, predicted_raster_path, agreement_raster, mask_values=mask_values, additional_layers_dict=additional_layers_dict, exclusion_mask=exclusion_mask)
     
     stats_dictionary = {}
-    
-    print(contingency_table_dictionary)
-    
+        
     for stats_mode in contingency_table_dictionary:
         true_negatives = contingency_table_dictionary[stats_mode]['true_negatives']
         false_negatives = contingency_table_dictionary[stats_mode]['false_negatives']
