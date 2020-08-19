@@ -8,6 +8,7 @@ import json
 import csv
 import argparse
 import shutil
+from multiprocessing import Pool
 
 from utils.shared_functions import get_contingency_table_from_binary_rasters, compute_stats_from_contingency_table
 from inundation import inundate
@@ -151,9 +152,9 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
         difference_dict.update({stat + '_diff': stat_value_diff})
     
     return difference_dict
-    
 
-def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=False, legacy_fim_run_dir=False, waterbody_mask_technique=''):
+
+def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=False, waterbody_mask_technique=''):
         
     
     # Construct paths to development test results if not existent.
@@ -170,10 +171,8 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     stats_modes_list = ['total_area']
     if run_structure_stats: stats_modes_list.append('structures')
     
-    if legacy_fim_run_dir:
-        fim_run_parent = os.path.join(os.environ['HISTORICAL_FIM_RUN'], fim_run_dir)
-    else:
-        fim_run_parent = os.path.join(os.environ['outputDataDir'], fim_run_dir)
+
+    fim_run_parent = os.path.join(os.environ['outputDataDir'], fim_run_dir)
         
     assert os.path.exists(fim_run_parent), "Cannot locate " + fim_run_parent
 
@@ -253,14 +252,14 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         forecast = os.path.join(TEST_CASES_DIR, 'validation_data_' + benchmark_category, current_huc, return_interval, benchmark_category + '_huc_' + current_huc + '_flows_' + return_interval + '.csv')
     
         # Run inundate.
-        print("-----> Running inundate() to produce modeled inundation extent for the " + return_interval + " return period...")
+#        print("-----> Running inundate() to produce modeled inundation extent for the " + return_interval + " return period...")
         inundate(
                  rem,catchments,hydro_table,forecast,hucs=hucs,hucs_layerName=hucs_layerName,subset_hucs=current_huc,
                  num_workers=1,aggregate=False,inundation_raster=inundation_raster,inundation_polygon=None,
                  depths=None,out_raster_profile=None,out_vector_profile=None,quiet=True
                 )
    
-        print("-----> Inundation mapping complete.")
+#        print("-----> Inundation mapping complete.")
         predicted_raster_path = os.path.join(os.path.split(inundation_raster)[0], os.path.split(inundation_raster)[1].replace('.tif', '_' + current_huc + '.tif'))  # The inundate adds the huc to the name so I account for that here.
     
         # Define outputs for agreement_raster, stats_json, and stats_csv.
@@ -397,8 +396,122 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
             print()
             print("--------------------------------------------------------------------------------------------------")
             print()
-                            
+                          
+            
+def process_alpha_test(args):
+    fim_run_dir, branch_name, test_id, return_interval = args[0], args[1], args[2], args[3]
+    
+    run_alpha_test(fim_run_dir, branch_name, test_id, return_interval)
+    
+            
+def plan_alpha_test_runs(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=False, waterbody_mask_technique='', job_number=1):
+    valid_test_id_list = os.listdir(TEST_CASES_DIR)
 
+    try:
+        job_number = int(job_number)
+        print()
+    except:
+        print("Please provide an integer for job_number argument (-j)")
+        sys.exit()
+    exit_flag = False  # Default to False.
+    print()
+                
+    procs_list = []
+    while exit_flag == False:
+        try:
+            job_number = int(job_number)
+            print()
+        except:
+            print("Please provide an integer for job_number argument (-j)")
+            print()
+            exit_flag = True
+            
+        
+        # NO YOU MUST USE NWM 
+        if waterbody_mask_technique != 'nwm_0':
+            print(WHITE_BOLD + "For the time being, only the nwm_0 waterbody masking option is available. Waterbody mask will be reset to 'nwm_0' " + ENDC)
+    #    if args['waterbody_mask_technique'] != '':
+    #        if args['waterbody_mask_technique'] not in ['nhd_0', 'nhd_100', 'nhd_250', 'nhd_500', 'nwm_0', 'nwm_100', 'nwm_250', 'nwm_500']:
+    #            print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided waterbody_mask_technique (-w) " + CYAN_BOLD + args['waterbody_mask_technique'] + WHITE_BOLD + " is not available." + ENDC)
+    #            print(WHITE_BOLD + "Available techniues include: " + ENDC)
+    #            for technique in ['nhd_0', 'nhd_100', 'nhd_250', 'nhd_500', 'nwm_0', 'nwm_100', 'nwm_250', 'nwm_500']:
+    #                print(CYAN_BOLD + technique + ENDC)
+    #            print()
+    #            exit_flag = True
+    #        
+               
+        # Ensure fim_run_dir exists.
+        if not os.path.exists(os.path.join(os.environ['outputDataDir'], fim_run_dir)):
+            print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided fim_run_dir (-r) " + CYAN_BOLD + fim_run_dir + WHITE_BOLD + " could not be located in the 'outputs' directory." + ENDC)
+            print(WHITE_BOLD + "Please provide the parent directory name for fim_run.sh outputs. These outputs are usually written in a subdirectory, e.g. outputs/123456/123456. If providing only the parent directory, ensure your spelling is correct." + ENDC)
+            print()
+            exit_flag = True
+            
+        # Ensure return_interval available.
+        if return_interval == '10yr':
+            print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided return interval (-y) " + CYAN_BOLD + return_interval + WHITE_BOLD + " is not available." + ENDC)
+            print()
+            exit_flag = True
+        
+        if test_id == "":
+            fim_run_dir = os.path.join(os.environ['outputDataDir'], fim_run_dir)
+            
+            # List subdirs in fim_run_dir
+            fim_run_dir_list = os.listdir(fim_run_dir)
+            
+            # Produce list of available test_ids.
+            test_cases_dir_list = os.listdir(TEST_CASES_DIR)
+            test_cases_dict = {}
+            
+            # Ugly way to create look-up of test_cases, but works fast.
+            for test_id in test_cases_dir_list:
+                print(test_id)
+                if 'validation' not in test_id:
+                    test_cases_dict.update({str(test_id[:4]): [],
+                                            str(test_id[:6]): [],
+                                            str(test_id[:8]): []}
+                                           )
+        
+            for test_id in test_cases_dir_list:
+                if 'validation' not in test_id:
+                    first_4 = str(test_id[:4])
+                    first_6 = str(test_id[:6])
+                    first_8 = str(test_id[:8])
+                    
+                    test_cases_dict[first_4].append(test_id)
+                    test_cases_dict[first_6].append(test_id)
+                    test_cases_dict[first_8].append(test_id)
+                    
+            for subdir in fim_run_dir_list:
+                if len(subdir) in [4, 6, 8] and subdir not in ['logs']:
+                    test_id_list = test_cases_dict[str(subdir)]
+                    full_fim_run_dir = os.path.join(fim_run_dir, subdir)
+                    for test_id in test_id_list:
+                        if job_number > 1:
+                            procs_list.append([full_fim_run_dir, branch_name, test_id, return_interval])
+                        else:
+                            process_alpha_test([full_fim_run_dir, branch_name, test_id, return_interval])
+                    
+            if job_number > 1:
+                pool = Pool(job_number)
+                pool.map(process_alpha_test, procs_list)
+        
+        # Aggregate the results and save to outputs directory.        
+                    
+        
+        # Ensure test_id is valid.
+        else:
+            if test_id not in valid_test_id_list:
+                print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided test_id (-t) " + CYAN_BOLD + test_id + WHITE_BOLD + " is not available." + ENDC)
+                print(WHITE_BOLD + "Available test_ids include: " + ENDC)
+                for test_id in valid_test_id_list:
+                  if 'validation' not in test_id.split('_'):
+                      print(CYAN_BOLD + test_id + ENDC)
+                print()
+                exit_flag = True
+            
+            else:
+                process_alpha_test([fim_run_dir, branch_name, test_id, return_interval])
 
 if __name__ == '__main__':
     
@@ -406,65 +519,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Inundation mapping and regression analysis for FOSS FIM. Regression analysis results are stored in the test directory.')
     parser.add_argument('-r','--fim-run-dir',help='Name of directory containing outputs of fim_run.sh',required=True)
     parser.add_argument('-b', '--branch-name',help='The name of the working branch in which features are being tested',required=True,default="")
-    parser.add_argument('-t','--test-id',help='The test_id to use. Format as: HUC_BENCHMARKTYPE, e.g. 12345678_ble.',required=True,default="")
+    parser.add_argument('-t','--test-id',help='The test_id to use. Format as: HUC_BENCHMARKTYPE, e.g. 12345678_ble.',required=False,default="")
     parser.add_argument('-y', '--return-interval',help='The return interval to check. Options include: 100yr, 500yr',required=False,default=['10yr', '100yr', '500yr'])
     parser.add_argument('-c', '--compare-to-previous', help='Compare to previous versions of HAND.', required=False,action='store_true')
     parser.add_argument('-s', '--run-structure-stats', help='Create contingency stats at structures.', required=False,action='store_true')
     parser.add_argument('-a', '--archive-results', help='Automatically copy results to the "previous_version" archive for test_id. For admin use only.', required=False,action='store_true')
     parser.add_argument('-w', '--waterbody-mask-technique', help='Define the waterbody masking technique you would like to use. Options include: nhd_0, nhd_100, nhd_250, nhd_500, nwm_0, nwm_100, nwm_250, nwm_500. Format is: dataset_buffer. Buffer distance in meters.', required=False, default='nwm_0')
-#    parser.add_argument('-l','--legacy-fim-run-dir',help='If set, the -b argument name is redirected to historical fim_run output data dir.',required=False, action='store_true')
+    parser.add_argument('-j','--job-number',help='Number of processes to use. Default is 1.',required=False, default=1)
     
     # Extract to dictionary and assign to variables.
     args = vars(parser.parse_args())
     
-    valid_test_id_list = os.listdir(TEST_CASES_DIR)
-
-    exit_flag = False  # Default to False.
-    print()
-    
-    if args['run_structure_stats']:
-        print("Run structure stats (-c) not yet supported.")
-        run_structure_stats = False
-                
-    # NO YOU MUST USE NWM 
-    if args['waterbody_mask_technique'] != 'nwm_0':
-        print(WHITE_BOLD + "For the time being, only the nwm_0 waterbody masking option is available. Waterbody mask will be reset to 'nwm_0' " + ENDC)
-    
-#    if args['waterbody_mask_technique'] != '':
-#        if args['waterbody_mask_technique'] not in ['nhd_0', 'nhd_100', 'nhd_250', 'nhd_500', 'nwm_0', 'nwm_100', 'nwm_250', 'nwm_500']:
-#            print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided waterbody_mask_technique (-w) " + CYAN_BOLD + args['waterbody_mask_technique'] + WHITE_BOLD + " is not available." + ENDC)
-#            print(WHITE_BOLD + "Available techniues include: " + ENDC)
-#            for technique in ['nhd_0', 'nhd_100', 'nhd_250', 'nhd_500', 'nwm_0', 'nwm_100', 'nwm_250', 'nwm_500']:
-#                print(CYAN_BOLD + technique + ENDC)
-#            print()
-#            exit_flag = True
-#        
-    # Ensure test_id is valid.
-    if args['test_id'] not in valid_test_id_list:
-        print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided test_id (-t) " + CYAN_BOLD + args['test_id'] + WHITE_BOLD + " is not available." + ENDC)
-        print(WHITE_BOLD + "Available test_ids include: " + ENDC)
-        for test_id in valid_test_id_list:
-          if 'validation' not in test_id.split('_'):
-              print(CYAN_BOLD + test_id + ENDC)
-        print()
-        exit_flag = True
-        
-    # Ensure fim_run_dir exists.
-    if not os.path.exists(os.path.join(os.environ['outputDataDir'], args['fim_run_dir'])):
-        print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided fim_run_dir (-r) " + CYAN_BOLD + args['fim_run_dir'] + WHITE_BOLD + " could not be located in the 'outputs' directory." + ENDC)
-        print(WHITE_BOLD + "Please provide the parent directory name for fim_run.sh outputs. These outputs are usually written in a subdirectory, e.g. outputs/123456/123456." + ENDC)
-        print()
-        exit_flag = True
-        
-    # Ensure return_interval available.
-    if args['return_interval'] == '10yr':
-        print(TRED_BOLD + "Warning: " + WHITE_BOLD + "The provided return interval (-y) " + CYAN_BOLD + args['return_interval'] + WHITE_BOLD + " is not available." + ENDC)
-        print()
-        
-        exit_flag = True
-
-    if exit_flag:
-        print()
-        sys.exit()
-    else:  
-        run_alpha_test(**args)
+    plan_alpha_test_runs(**args)
+   

@@ -23,8 +23,11 @@ def process_alpha_test(args):
     test_id = args[2]
     return_interval = args[3]
 
-    run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=True, legacy_fim_run_dir=False, waterbody_mask_technique='nwm_100')
+    try:
+        run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=True, waterbody_mask_technique='nwm_0')
     
+    except Exception as e:
+        print(e)
 
 if __name__ == '__main__':
 
