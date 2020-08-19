@@ -158,9 +158,11 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     
     # Construct paths to development test results if not existent.
     if archive_results:
-        branch_test_case_dir_parent = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions', branch_name)
+        branch_test_case_dir_parent = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'previous_versions', branch_name + '_' + waterbody_mask_technique)
     else:
-        branch_test_case_dir_parent = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch_name)
+        branch_test_case_dir_parent = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', 'development_versions', branch_name + '_' + waterbody_mask_technique)
+        
+    print(branch_test_case_dir_parent)
     
     # Delete the entire directory if it already exists.
     if os.path.exists(branch_test_case_dir_parent):
