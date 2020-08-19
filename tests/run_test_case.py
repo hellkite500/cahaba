@@ -212,7 +212,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
 #        if ht_feature_id in feature_ids_to_mask:
 #            hydro_ids_to_mask.append(ht_hydro_id)
                         
-    waterbody_mask_technique = 'nwm_0'  # TEMPORARY. FORCE 'nwm_0'.
+#    waterbody_mask_technique = 'nwm_0'  # TEMPORARY. FORCE 'nwm_0'.
     
     if waterbody_mask_technique != '':
         waterbody_category, waterbody_buffer = waterbody_mask_technique.split('_')[0], waterbody_mask_technique.split('_')[1]

@@ -22,8 +22,9 @@ def process_alpha_test(args):
     branch_name = args[1]
     test_id = args[2]
     return_interval = args[3]
+    waterbody_masking_technique = args[4]
 
-    run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=True, legacy_fim_run_dir=False, waterbody_mask_technique='nwm_100')
+    run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=True, legacy_fim_run_dir=False, waterbody_mask_technique=waterbody_masking_technique)
     
 
 if __name__ == '__main__':
@@ -60,10 +61,16 @@ if __name__ == '__main__':
                 fim_run_dir = os.path.join(PREVIOUS_FIM_DIR, branch_name, huc6)
                 
                 return_interval = ['100yr', '500yr']
-                if job_number > 1:
-                    procs_list.append([fim_run_dir, branch_name, test_id, return_interval])
-                else:
-                    process_alpha_test([fim_run_dir, branch_name, test_id, return_interval])
+                
+                                
+                for waterbody_masking_technique in ['nhd_0', 'nhd_100', 'nhd_250', 'nhd_500', 'nwm_0', 'nwm_100', 'nwm_250', 'nwm_500']:
+                    fim_run_dir = os.path.join(PREVIOUS_FIM_DIR, branch_name, huc6)
+                    procs_list.append([fim_run_dir, branch_name, test_id, return_interval, waterbody_masking_technique])
+                
+                    if job_number > 1:
+                        procs_list.append([fim_run_dir, branch_name, test_id, return_interval, waterbody_masking_technique])
+                    else:
+                        process_alpha_test([fim_run_dir, branch_name, test_id, return_interval, waterbody_masking_technique])
 
 
     if job_number > 1:
