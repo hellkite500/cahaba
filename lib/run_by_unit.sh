@@ -118,22 +118,6 @@ Tstart
 mpiexec -n $ncores_fd $taudemDir2/d8flowdir -fel $outputHucDataDir/dem_burned_filled.tif -p $outputHucDataDir/flowdir_d8_burned_filled.tif -sd8 $outputHucDataDir/slopes_d8_burned_filled.tif
 Tcount
 
-## MASK BURNED DEM FOR STREAMS ONLY ###
-echo -e $startDiv"Mask Burned DEM for Thalweg Only $hucNumber"$stopDiv
-date -u
-Tstart
-[ ! -f $outputHucDataDir/flowdir_d8_burned_filled_flows.tif ] && \
-gdal_calc.py --quiet --type=Int32 --overwrite --co "COMPRESS=LZW" --co "BIGTIFF=YES" --co "TILED=YES" -A $outputHucDataDir/flowdir_d8_burned_filled.tif -B $outputHucDataDir/flows_grid_boolean.tif --calc="A/B" --outfile="$outputHucDataDir/flowdir_d8_burned_filled_flows.tif" --NoDataValue=0
-Tcount
-
-## FLOW CONDITION STREAMS ##
-echo -e $startDiv"Flow Condition Thalweg $hucNumber"$stopDiv
-date -u
-Tstart
-[ ! -f $outputHucDataDir/dem_thalwegCond.tif ] && \
-$taudemDir/flowdircond -p $outputHucDataDir/flowdir_d8_burned_filled_flows.tif -z $outputHucDataDir/dem_meters.tif -zfdc $outputHucDataDir/dem_thalwegCond.tif
-Tcount
-
 ## DINF FLOW DIR ##
 # echo -e $startDiv"DINF on Filled Thalweg Conditioned DEM"$stopDiv
 # date -u
@@ -155,6 +139,25 @@ date -u
 Tstart
 $taudemDir/threshold -ssa $outputHucDataDir/flowaccum_d8_burned_filled.tif -src  $outputHucDataDir/demDerived_streamPixels.tif -thresh 1
 Tcount
+#
+#Option 1: extract fdr8 from full stream network (demDerived_streamPixels.tif)
+#Extract fdr8 for full stream network
+## MASK BURNED DEM FOR STREAMS ONLY ###
+echo -e $startDiv"Mask Burned DEM for full stream network Thalweg Only $hucNumber"$stopDiv
+date -u
+Tstart
+[ ! -f $outputHucDataDir/flowdir_d8_burned_filled_flows.tif ] && \
+gdal_calc.py --quiet --type=Int32 --overwrite --co "COMPRESS=LZW" --co "BIGTIFF=YES" --co "TILED=YES" -A $outputHucDataDir/flowdir_d8_burned_filled.tif -B $outputHucDataDir/demDerived_streamPixels.tif --calc="A/B" --outfile="$outputHucDataDir/flowdir_d8_burned_filled_flows.tif" --NoDataValue=0
+Tcount
+#Flow Condition Streams using full stream network.
+## FLOW CONDITION STREAMS ##
+echo -e $startDiv"Flow Condition Thalweg $hucNumber"$stopDiv
+date -u
+Tstart
+[ ! -f $outputHucDataDir/dem_thalwegCond.tif ] && \
+$taudemDir/flowdircond -p $outputHucDataDir/flowdir_d8_burned_filled_flows.tif -z $outputHucDataDir/dem_meters.tif -zfdc $outputHucDataDir/dem_thalwegCond.tif
+Tcount
+#
 
 # STREAMNET FOR REACHES ##
 echo -e $startDiv"Stream Net for Reaches $hucNumber"$stopDiv
