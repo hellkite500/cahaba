@@ -154,7 +154,7 @@ def check_for_regression(stats_json_to_test, previous_version, previous_version_
     return difference_dict
 
 
-def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=False, waterbody_mask_technique=''):
+def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, archive_results=False, run_structure_stats=False, waterbody_mask_technique=''):
         
     
     # Construct paths to development test results if not existent.
@@ -324,7 +324,6 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
             print("--------------------------------------------------------------------------------------------------")
 
             stats_mode = stats_modes_list[0]
-                        
             try:
                 last_version_index = text_block[0].index('dev_latest')
             except ValueError:
@@ -353,19 +352,14 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                     print(CYAN_BOLD + stats_mode.upper().replace('_', ' ') + " METRICS" + ENDC)
                     print()
                 
-                    color = WHITE_BOLD
                     metric_name = '      '.center(len(max(PRINTWORTHY_STATS, key=len)))
-                    percent_change_header = '% CHG'
-                    difference_header = 'DIFF'
-                    current_version_header = line[current_version_index].upper()
-                    last_version_header = line[last_version_index].upper()
+                    percent_change_header, difference_header = '% CHG', 'DIFF'
+                    current_version_header, last_version_header = line[current_version_index].upper(), line[last_version_index].upper()
                     # Print Header.
-                    print(color + metric_name + "      " + percent_change_header.center((7)) + "       " + difference_header.center((15))  + "    " + current_version_header.center(18) + " " + last_version_header.center(18), ENDC)
-                # Format and print stat row.
+                    print(WHITE_BOLD + metric_name + "      " + percent_change_header.center((7)) + "       " + difference_header.center((15))  + "    " + current_version_header.center(18) + " " + last_version_header.center(18), ENDC)
                 elif first_item in PRINTWORTHY_STATS:
                     stat_name = first_item.upper().center(len(max(PRINTWORTHY_STATS, key=len))).replace('_', ' ')
-                    current_version = round((line[current_version_index]), 3)
-                    last_version = round((line[last_version_index]) + 0.000, 3)
+                    current_version, last_version = round((line[current_version_index]), 3), round((line[last_version_index]) + 0.000, 3)
                     difference = round(current_version - last_version, 3)
                     if difference > 0:
                         symbol = '+'
@@ -383,30 +377,43 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
                             color = TGREEN_BOLD
                         else:
                             color = TWHITE
-                            
                     if difference == 0 : 
                         symbol, color = '+', TGREEN
                     percent_change = round((difference / last_version)*100,2)
                     
                     print(WHITE_BOLD + stat_name + ENDC + "     " + color + (symbol + " {:5.2f}".format(abs(percent_change)) + " %").rjust(len(percent_change_header)), ENDC + "    " + color + ("{:12.3f}".format((difference))).rjust(len(difference_header)), ENDC + "    " + "{:15.3f}".format(current_version).rjust(len(current_version_header)) + "   " + "{:15.3f}".format(last_version).rjust(len(last_version_header)) + "  ")
-            
             print()
-        
             print()
             print()
             print("--------------------------------------------------------------------------------------------------")
             print()
                           
             
-def process_alpha_test(args):
-    fim_run_dir, branch_name, test_id, return_interval = args[0], args[1], args[2], args[3]
+def aggregate_multi_results(aggregate_dict):
+        
+    print(aggregate_dict)
+    print()
+    for test_id in aggregate_dict:
+        print(aggregate_dict[test_id])
+            
+        
+    # Loop through each set of metric results for each test_id and return_interval.
     
-    run_alpha_test(fim_run_dir, branch_name, test_id, return_interval)
+    # Append results to a single table.
+    
+    
+        
+        
+        
+def process_alpha_test(args):
+    fim_run_dir, branch_name, test_id, return_interval, archive_results = args[0], args[1], args[2], args[3], args[4]
+    
+#    run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, archive_results)
     
             
-def plan_alpha_test_runs(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, run_structure_stats=False, archive_results=False, waterbody_mask_technique='', job_number=1):
+def plan_alpha_test_runs(fim_run_dir, branch_name, test_id, return_interval, compare_to_previous=False, archive_results=False, run_structure_stats=False, waterbody_mask_technique='', job_number=1):
     valid_test_id_list = os.listdir(TEST_CASES_DIR)
-
+    aggregate_dict = {}
     try:
         job_number = int(job_number)
         print()
@@ -465,7 +472,6 @@ def plan_alpha_test_runs(fim_run_dir, branch_name, test_id, return_interval, com
             
             # Ugly way to create look-up of test_cases, but works fast.
             for test_id in test_cases_dir_list:
-                print(test_id)
                 if 'validation' not in test_id:
                     test_cases_dict.update({str(test_id[:4]): [],
                                             str(test_id[:6]): [],
@@ -486,18 +492,32 @@ def plan_alpha_test_runs(fim_run_dir, branch_name, test_id, return_interval, com
                 if len(subdir) in [4, 6, 8] and subdir not in ['logs']:
                     test_id_list = test_cases_dict[str(subdir)]
                     full_fim_run_dir = os.path.join(fim_run_dir, subdir)
+                    
                     for test_id in test_id_list:
                         if job_number > 1:
-                            procs_list.append([full_fim_run_dir, branch_name, test_id, return_interval])
+                            procs_list.append([full_fim_run_dir, branch_name, test_id, return_interval, archive_results])
                         else:
-                            process_alpha_test([full_fim_run_dir, branch_name, test_id, return_interval])
-                    
+                            process_alpha_test([full_fim_run_dir, branch_name, test_id, return_interval, archive_results])
+                            
+                        if type(return_interval) != list:
+                            return_interval = [return_interval]
+                            
+                        if archive_results == True:
+                            version = 'previous_versions'
+                        if archive_results == False:
+                            version = 'development_versions'
+                            
+                        # Construct path to metrics file.
+                        for interval in return_interval:
+                            metrics_file = os.path.join(TEST_CASES_DIR, test_id, 'performance_archive', version, branch_name, interval, 'stat')
+                            print(metrics_file)
+                            
+                            
+                            
+                            
             if job_number > 1:
                 pool = Pool(job_number)
                 pool.map(process_alpha_test, procs_list)
-        
-        # Aggregate the results and save to outputs directory.        
-                    
         
         # Ensure test_id is valid.
         else:
@@ -512,6 +532,12 @@ def plan_alpha_test_runs(fim_run_dir, branch_name, test_id, return_interval, com
             
             else:
                 process_alpha_test([fim_run_dir, branch_name, test_id, return_interval])
+        
+        exit_flag = True
+
+#    if aggregate_dict != {}:
+#        # Aggregate the results and save to outputs directory.        
+#        aggregate_multi_results(aggregate_dict)
 
 if __name__ == '__main__':
     
@@ -520,7 +546,7 @@ if __name__ == '__main__':
     parser.add_argument('-r','--fim-run-dir',help='Name of directory containing outputs of fim_run.sh',required=True)
     parser.add_argument('-b', '--branch-name',help='The name of the working branch in which features are being tested',required=True,default="")
     parser.add_argument('-t','--test-id',help='The test_id to use. Format as: HUC_BENCHMARKTYPE, e.g. 12345678_ble.',required=False,default="")
-    parser.add_argument('-y', '--return-interval',help='The return interval to check. Options include: 100yr, 500yr',required=False,default=['10yr', '100yr', '500yr'])
+    parser.add_argument('-y', '--return-interval',help='The return interval to check. Options include: 100yr, 500yr',required=False,default=['100yr', '500yr'])
     parser.add_argument('-c', '--compare-to-previous', help='Compare to previous versions of HAND.', required=False,action='store_true')
     parser.add_argument('-s', '--run-structure-stats', help='Create contingency stats at structures.', required=False,action='store_true')
     parser.add_argument('-a', '--archive-results', help='Automatically copy results to the "previous_version" archive for test_id. For admin use only.', required=False,action='store_true')
