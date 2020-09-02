@@ -35,7 +35,7 @@ def subset_vector_layers(hucCode,nwm_streams_fileName,nhd_streams_fileName,nhd_s
     # query nhd+HR streams for HUC code
     print("Querying NHD Streams for HUC{} {}".format(hucUnitLength,hucCode),flush=True)
     nhd_streams = gpd.read_file(nhd_streams_fileName, mask = wbd)
-    nhd_streams = nhd_streams.query('ReachCode.str.startswith("{}")'.format(hucCode))
+    nhd_streams = nhd_streams.query('ReachCode.str.startswith("{}")'.format(hucCode[:4]))
     nhd_streams = nhd_streams.explode()
 
     # find intersecting nwm_headwaters
@@ -86,8 +86,7 @@ def subset_vector_layers(hucCode,nwm_streams_fileName,nhd_streams_fileName,nhd_s
             hw_point = [point for point in zip(*lineString.coords.xy)][-1]
             hw_points[index] = Point(*hw_point)
 
-        nhd_headwater_points = gpd.GeoDataFrame({'NHDPlusID' : nhd_headwater_streams['NHDPlusID'],
-                                                'geometry' : hw_points},geometry='geometry',crs=projection)
+        nhd_headwater_points = gpd.GeoDataFrame({'NHDPlusID' : nhd_headwater_streams['NHDPlusID'],'geometry' : hw_points},geometry='geometry',crs=projection)
 
         nhd_headwater_points.to_file(subset_nhd_headwaters_fileName,driver=getDriver(subset_nhd_headwaters_fileName),index=False)
         del nhd_headwater_streams, nhd_headwater_points
@@ -104,22 +103,15 @@ def subset_vector_layers(hucCode,nwm_streams_fileName,nhd_streams_fileName,nhd_s
 
     while Q:
         q = Q.popleft()
-
         if q in visited:
             continue
-
         visited.add(q)
-
         toNode = nhd_streams.loc[q,'ToNode']
-
         downstream_ids = nhd_streams.loc[nhd_streams['FromNode'] == toNode,:].index.tolist()
-
         nhd_streams.loc[downstream_ids,'is_nwm_stream'] = True
-
         for i in downstream_ids:
             if i not in visited:
                 Q.append(i)
-
     nhd_streams = nhd_streams.loc[nhd_streams['is_nwm_stream'],:]
 
     if dissolveLinks:
@@ -175,13 +167,13 @@ def subset_vector_layers(hucCode,nwm_streams_fileName,nhd_streams_fileName,nhd_s
                         link_geometries[nhd_streams.loc[i,'linkNo']] = link_geometries[nhd_streams.loc[i,'linkNo']] + next_stream_geometry
 
 
-        # convert dictionary to lists for keys (linkNos) and values (geometry linestrings)
-        output_links = [] ; output_geometries = []
-        for ln_no, ln_geom in link_geometries.items():
-            output_links = output_links + [ln_no]
-            output_geometries = output_geometries + [LineString(ln_geom)]
+            # convert dictionary to lists for keys (linkNos) and values (geometry linestrings)
+            output_links = [] ; output_geometries = []
+            for ln_no, ln_geom in link_geometries.items():
+                output_links = output_links + [ln_no]
+                output_geometries = output_geometries + [LineString(ln_geom)]
 
-        nhd_streams = gpd.GeoDataFrame({'linkNO' : output_links,'geometry': output_geometries},geometry='geometry',crs=projection)
+            nhd_streams = gpd.GeoDataFrame({'linkNO' : output_links,'geometry': output_geometries},geometry='geometry',crs=projection)
 
     # write to files
     nhd_streams.reset_index(drop=True,inplace=True)
