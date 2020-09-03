@@ -121,14 +121,16 @@ echo -e $startDiv"Pit remove Burned DEM $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/dem_burned_filled.tif ] && \
-rd_depression_filling $outputHucDataDir/dem_burned.tif $outputHucDataDir/dem_burned_filled.tif
+# rd_depression_filling $outputHucDataDir/dem_burned.tif $outputHucDataDir/dem_burned_filled.tif
+rd_depression_filling $outputHucDataDir/dem_burned.tif $outputHucDataDir/dem_burned_filled_richdem.tif
+mpiexec -n 2 $taudemDir/pitremove -z $outputHucDataDir/dem_burned.tif -fel $outputHucDataDir/dem_burned_filled.tif
 Tcount
 
 ## D8 FLOW DIR ##
 echo -e $startDiv"D8 Flow Directions on Burned DEM $hucNumber"$stopDiv
 date -u
 Tstart
-[ ! -f $outputHucDataDir/flowdir_d8_burned_filled.tif ] \
+[ ! -f $outputHucDataDir/flowdir_d8_burned_filled.tif ] && \
 mpiexec -n $ncores_fd $taudemDir2/d8flowdir -fel $outputHucDataDir/dem_burned_filled.tif -p $outputHucDataDir/flowdir_d8_burned_filled.tif
 Tcount
 
