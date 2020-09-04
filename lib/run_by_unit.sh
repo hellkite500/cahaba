@@ -182,13 +182,13 @@ Tstart
 [ ! -f $outputHucDataDir/gw_catchments_reaches.tif ] && \
 mpiexec -n $ncores_gw $taudemDir/gagewatershed -p $outputHucDataDir/flowdir_d8_burned_filled.tif -gw $outputHucDataDir/gw_catchments_reaches.tif -o $outputHucDataDir/demDerived_reaches_split_points.gpkg -id $outputHucDataDir/idFile.txt
 Tcount
-
+#Modification (change the input raster from flows_grid_boolean.tif to demDerived_streamPixels.tif. flows_grid_boolean has incomplete streams from NWM burn line event.
 ## VECTORIZE FEATURE ID CENTROIDS ##
 echo -e $startDiv"Vectorize Pixel Centroids $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/flows_points_pixels.gpkg ] && \
-$libDir/reachID_grid_to_vector_points.py $outputHucDataDir/flows_grid_boolean.tif $outputHucDataDir/flows_points_pixels.gpkg featureID
+$libDir/reachID_grid_to_vector_points.py $outputHucDataDir/demDerived_streamPixels.tif $outputHucDataDir/flows_points_pixels.gpkg featureID
 Tcount
 
 ## GAGE WATERSHED FOR PIXELS ##
