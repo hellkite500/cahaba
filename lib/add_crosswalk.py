@@ -31,14 +31,17 @@ input_majorities = input_majorities.rename(columns={'_majority' : 'feature_id'})
 input_majorities = input_majorities[:][input_majorities['feature_id'].notna()]
 input_majorities['feature_id'] = input_majorities['feature_id'].astype(int)
 
+
 input_nwmflows = input_nwmflows.rename(columns={'ID':'feature_id'})
 relevant_input_nwmflows = input_nwmflows[input_nwmflows['feature_id'].isin(input_majorities['feature_id'])]
 relevant_input_nwmflows = relevant_input_nwmflows.filter(items=['feature_id','order_'])
 
 # output_catchments = input_catchments.merge(input_flows.drop(['geometry'],axis=1),on='HydroID')
+input_majorities['HydroID'] = input_majorities['HydroID'].astype(str)
 output_catchments = input_catchments.merge(input_majorities[['HydroID','feature_id']],on='HydroID')
 output_catchments = output_catchments.merge(relevant_input_nwmflows[['order_','feature_id']],on='feature_id')
 
+input_flows['HydroID'] = input_flows['HydroID'].astype(str)
 output_flows = input_flows.merge(input_majorities[['HydroID','feature_id']],on='HydroID')
 output_flows = output_flows.merge(relevant_input_nwmflows[['order_','feature_id']],on='feature_id')
 
@@ -49,8 +52,8 @@ output_flows['ManningN'] = output_flows['order_'].astype(str).map(mannings_dict)
 
 # calculate src_full
 input_src_base = pd.read_csv(input_srcbase_fileName, dtype= object) #
-input_src_base['CatchId'] = input_src_base['CatchId'].astype(int)
-
+input_src_base['CatchId'] = input_src_base['CatchId'].astype(str)
+output_flows['HydroID'] = output_flows['HydroID'].astype(str)
 input_src_base = input_src_base.merge(output_flows[['ManningN','HydroID']],left_on='CatchId',right_on='HydroID')
 
 input_src_base = input_src_base.rename(columns=lambda x: x.strip(" "))
@@ -70,7 +73,7 @@ input_src_base.loc[input_src_base['Stage']==0,['Discharge (m3s-1)']] = 0
 
 # output_src = input_src.rename(columns={'CatchId':'HydroID'})
 output_src = input_src_base.drop(columns=['CatchId'])
-output_src['HydroID'] = output_src['HydroID'].astype(int)
+output_src['HydroID'] = output_src['HydroID'].astype(str)
 output_src = output_src.merge(input_majorities[['HydroID','feature_id']],on='HydroID')
 
 output_crosswalk = output_src[['HydroID','feature_id']]

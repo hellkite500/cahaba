@@ -58,7 +58,7 @@ echo -e $startDiv"Get Vector Layers and Subset $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/demDerived_reaches.shp ] && \
-$libDir/snap_and_clip_to_nhd.py -d $hucNumber -w $input_NWM_Flows -s $input_NHD_Flowlines -v $input_NHD_VAA -l $input_NWM_Lakes -u $outputHucDataDir/wbd_buffered.gpkg -c $outputHucDataDir/NHDPlusBurnLineEvent_subset.gpkg -a $outputHucDataDir/nwm_lakes_proj_subset.gpkg -t $outputHucDataDir/nwm_headwaters_proj_subset.gpkg -m $input_NWM_Catchments -n $outputHucDataDir/nwm_catchments_proj_subset.gpkg -e $outputHucDataDir/nhd_headwater_points_subset.gpkg -b $outputHucDataDir/nwm_subset_streams.gpkg
+$libDir/snap_and_clip_to_nhd.py -d $hucNumber -w $input_NWM_Flows -s $input_NHD_Flowlines -v $input_NHD_VAA -l $input_NWM_Lakes -u $outputHucDataDir/wbd.gpkg -z $outputHucDataDir/wbd_buffered.gpkg -c $outputHucDataDir/NHDPlusBurnLineEvent_subset.gpkg -a $outputHucDataDir/nwm_lakes_proj_subset.gpkg -t $outputHucDataDir/nwm_headwaters_proj_subset.gpkg -m $input_NWM_Catchments -n $outputHucDataDir/nwm_catchments_proj_subset.gpkg -e $outputHucDataDir/nhd_headwater_points_subset.gpkg -b $outputHucDataDir/nwm_subset_streams.gpkg
 Tcount
 
 ## CLIP DEM ##
@@ -122,7 +122,7 @@ date -u
 Tstart
 [ ! -f $outputHucDataDir/dem_burned_filled.tif ] && \
 # rd_depression_filling $outputHucDataDir/dem_burned.tif $outputHucDataDir/dem_burned_filled.tif
-rd_depression_filling $outputHucDataDir/dem_burned.tif $outputHucDataDir/dem_burned_filled_richdem.tif
+# rd_depression_filling $outputHucDataDir/dem_burned.tif $outputHucDataDir/dem_burned_filled_richdem.tif
 mpiexec -n 2 $taudemDir/pitremove -z $outputHucDataDir/dem_burned.tif -fel $outputHucDataDir/dem_burned_filled.tif
 Tcount
 
@@ -280,7 +280,7 @@ echo -e $startDiv"Process catchments and model streams step 1 $hucNumber"$stopDi
 date -u
 Tstart
 [ ! -f $outputHucDataDir/gw_catchments_reaches_filtered_addedAttributes.gpkg ] && \
-$libDir/filter_catchments_and_add_attributes.py $outputHucDataDir/gw_catchments_reaches.gpkg $outputHucDataDir/demDerived_reaches_split.gpkg $outputHucDataDir/gw_catchments_reaches_filtered_addedAttributes.gpkg $outputHucDataDir/demDerived_reaches_split_filtered.gpkg $outputHucDataDir/wbd.gpkg
+$libDir/filter_catchments_and_add_attributes.py $outputHucDataDir/gw_catchments_reaches.gpkg $outputHucDataDir/demDerived_reaches_split.gpkg $outputHucDataDir/gw_catchments_reaches_filtered_addedAttributes.gpkg $outputHucDataDir/demDerived_reaches_split_filtered.gpkg $outputHucDataDir/wbd8_clp.gpkg $hucNumber
 Tcount
 
 ## GET RASTER METADATA ##

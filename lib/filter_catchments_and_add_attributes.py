@@ -12,15 +12,15 @@ input_flows_fileName = sys.argv[2]
 output_catchments_fileName = sys.argv[3]
 output_flows_fileName = sys.argv[4]
 wbd_fileName = sys.argv[5]
+hucCode = str(sys.argv[6])
 
 input_catchments = gpd.read_file(input_catchments_fileName)
 wbd = gpd.read_file(wbd_fileName)
-select_flows = gpd.read_file(input_flows_fileName, mask = wbd)
-select_flows_list = list(select_flows.HydroID)
-
 input_flows = gpd.read_file(input_flows_fileName)
-output_flows = input_flows[input_flows.HydroID.isin(select_flows_list)]
-
+select_flows = tuple(wbd[wbd.HUC8.str.contains(hucCode)].fossid)
+input_flows['HydroID'] = input_flows['HydroID'].astype(str)
+output_flows = input_flows[input_flows.HydroID.str.startswith(select_flows)]
+# input_flows['HydroID'] = input_flows['HydroID'].astype(int)
 # input_majorities = gpd.read_file(input_majorities_fileName)
 
 # input_majorities = input_majorities.rename(columns={'_majority' : 'feature_id'})
@@ -28,6 +28,7 @@ output_flows = input_flows[input_flows.HydroID.isin(select_flows_list)]
 # input_majorities['feature_id'] = input_majorities['feature_id'].astype(int)
 
 # merges input flows attributes and filters hydroids
+input_catchments['HydroID'] = input_catchments['HydroID'].astype(str)
 output_catchments = input_catchments.merge(output_flows.drop(['geometry'],axis=1),on='HydroID')
 
 # filter out smaller duplicate features
