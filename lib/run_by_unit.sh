@@ -123,7 +123,7 @@ Tstart
 [ ! -f $outputHucDataDir/dem_burned_filled.tif ] && \
 # rd_depression_filling $outputHucDataDir/dem_burned.tif $outputHucDataDir/dem_burned_filled.tif
 # rd_depression_filling $outputHucDataDir/dem_burned.tif $outputHucDataDir/dem_burned_filled_richdem.tif
-mpiexec -n 2 $taudemDir/pitremove -z $outputHucDataDir/dem_burned.tif -fel $outputHucDataDir/dem_burned_filled.tif
+mpiexec -n 4 $taudemDir/pitremove -z $outputHucDataDir/dem_burned.tif -fel $outputHucDataDir/dem_burned_filled.tif
 Tcount
 
 ## D8 FLOW DIR ##
@@ -337,18 +337,18 @@ Tstart
 $taudemDir/catchhydrogeo -hand $outputHucDataDir/rem_zeroed_masked.tif -catch $outputHucDataDir/gw_catchments_reaches_filtered_addedAttributes.tif -catchlist $outputHucDataDir/catchment_list.txt -slp $outputHucDataDir/slopes_d8_dem_meters_masked.tif -h $outputHucDataDir/stage.txt -table $outputHucDataDir/src_base.csv
 Tcount
 
-## GET MAJORITY COUNTS ##
-echo -e $startDiv"Getting majority counts $hucNumber"$stopDiv
-date -u
-Tstart
-[ ! -f $outputHucDataDir/majority.geojson ] && \
-fio cat $outputHucDataDir/gw_catchments_reaches_filtered_addedAttributes.gpkg | rio zonalstats -r $outputHucDataDir/nwm_catchments_proj_subset.tif --stats majority > $outputHucDataDir/majority.geojson
-Tcount
+# ## GET MAJORITY COUNTS ##
+# echo -e $startDiv"Getting majority counts $hucNumber"$stopDiv
+# date -u
+# Tstart
+# [ ! -f $outputHucDataDir/majority.geojson ] && \
+# fio cat $outputHucDataDir/gw_catchments_reaches_filtered_addedAttributes.gpkg | rio zonalstats -r $outputHucDataDir/nwm_catchments_proj_subset.tif --stats majority > $outputHucDataDir/majority.geojson
+# Tcount
 
 ## FINALIZE CATCHMENTS AND MODEL STREAMS ##
 echo -e $startDiv"Finalize catchments and model streams $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/gw_catchments_reaches_clipped_addedAttributes_crosswalked.gpkg ] && \
-$libDir/add_crosswalk.py $outputHucDataDir/gw_catchments_reaches_filtered_addedAttributes.gpkg $outputHucDataDir/demDerived_reaches_split_filtered.gpkg $outputHucDataDir/src_base.csv $outputHucDataDir/majority.geojson $outputHucDataDir/gw_catchments_reaches_clipped_addedAttributes_crosswalked.gpkg $outputHucDataDir/demDerived_reaches_split_clipped_addedAttributes_crosswalked.gpkg $outputHucDataDir/src_full_crosswalked.csv $outputHucDataDir/src.json $outputHucDataDir/crosswalk_table.csv $outputHucDataDir/hydroTable.csv $outputHucDataDir/wbd8_clp.gpkg $outputHucDataDir/nwm_subset_streams.gpkg $manning_n
+$libDir/add_crosswalk.py $outputHucDataDir/gw_catchments_reaches_filtered_addedAttributes.gpkg $outputHucDataDir/demDerived_reaches_split_filtered.gpkg $outputHucDataDir/src_base.csv $outputHucDataDir/gw_catchments_reaches_clipped_addedAttributes_crosswalked.gpkg $outputHucDataDir/demDerived_reaches_split_clipped_addedAttributes_crosswalked.gpkg $outputHucDataDir/src_full_crosswalked.csv $outputHucDataDir/src.json $outputHucDataDir/crosswalk_table.csv $outputHucDataDir/hydroTable.csv $outputHucDataDir/wbd8_clp.gpkg $outputHucDataDir/nwm_subset_streams.gpkg $manning_n
 Tcount

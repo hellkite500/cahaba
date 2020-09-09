@@ -27,7 +27,7 @@ def subset_vector_layers(hucCode,nwm_streams_fileName,nhd_streams_fileName,nhd_s
 
     # find intersecting nwm_catchments
     print("Subsetting NWM Catchments for HUC{} {}".format(hucUnitLength,hucCode),flush=True)
-    nwm_catchments = gpd.read_file(nwm_catchments_fileName, mask = wbd_buffered)
+    nwm_catchments = gpd.read_file(nwm_catchments_fileName, mask = wbd)
     #nwm_catchments = nwm_catchments.loc[nwm_catchments.intersects(wbd.geometry[0]),:]
     #nwm_catchments.reset_index(drop=True,inplace=True)
     nwm_catchments.to_file(subset_nwm_catchments_fileName,driver=getDriver(subset_nwm_catchments_fileName),index=False)
@@ -35,7 +35,7 @@ def subset_vector_layers(hucCode,nwm_streams_fileName,nhd_streams_fileName,nhd_s
 
     # query nhd+HR streams for HUC code
     print("Querying NHD Streams for HUC{} {}".format(hucUnitLength,hucCode),flush=True)
-    nhd_streams = gpd.read_file(nhd_streams_fileName, mask = wbd)
+    nhd_streams = gpd.read_file(nhd_streams_fileName) # , mask = wbd
     nhd_streams = nhd_streams.query('ReachCode.str.startswith("{}")'.format(hucCode[:(hucUnitLength-2)]))
     nhd_streams = nhd_streams.explode()
 
@@ -44,7 +44,7 @@ def subset_vector_layers(hucCode,nwm_streams_fileName,nhd_streams_fileName,nhd_s
     nwm_streams = gpd.read_file(nwm_streams_fileName, mask = wbd)
     nwm_streams.to_file(subset_nwm_streams_fileName,driver=getDriver(subset_nwm_streams_fileName),index=False)
     nwm_headwaters = findHeadWaterPoints(nwm_streams)
-    nwm_headwaters = gpd.overlay(nwm_headwaters,wbd,how='intersection')
+    # nwm_headwaters = gpd.overlay(nwm_headwaters,wbd,how='intersection')
     del nwm_streams
 
     # merge vaa and nhd streams
@@ -69,8 +69,8 @@ def subset_vector_layers(hucCode,nwm_streams_fileName,nhd_streams_fileName,nhd_s
     del nwm_headwaters
 
     # identify inflowing streams
-    print("Identify inflowing streams",flush=True)
-    intersecting=nhd_streams.crosses(wbd.geometry[0])
+    # print("Identify inflowing streams",flush=True)
+    intersecting=nhd_streams.crosses(wbd_buffered.geometry[0])
     nhd_streams.loc[intersecting,'is_nwm_headwater'] = True
 
     # copy over headwater features to nwm streams
