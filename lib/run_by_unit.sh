@@ -25,7 +25,7 @@ mkdir $outputHucDataDir
 ## SET VARIABLES AND FILE INPUTS ##
 hucUnitLength=${#hucNumber}
 huc4Identifier=${hucNumber:0:4}
-input_NHD_Flowlines=$inputDataDir/nhdplus_vectors/"$huc4Identifier"/NHDPlusBurnLineEvent"$huc4Identifier".gpkg
+input_NHD_Flowlines=$inputDataDir/CONUS_data/NHDPlusBurnLineEvent_wVAA_120401_final.gpkg
 input_NHD_VAA=$inputDataDir/nhdplus_vectors/"$huc4Identifier"/NHDPlusFlowLineVAA"$huc4Identifier".gpkg
 input_NHD_WBHD_layer=WBDHU$hucUnitLength
 input_DEM=$inputDataDir/nhdplus_rasters/HRNHDPlusRasters"$huc4Identifier"/elev_cm.tif
@@ -101,12 +101,12 @@ gdal_rasterize -ot Int32 -burn 1 -init 0 -co "COMPRESS=LZW" -co "BIGTIFF=YES" -c
 Tcount
 
 ## RASTERIZE NWM CATCHMENTS ##
-echo -e $startDiv"Raster NWM Catchments $hucNumber"$stopDiv
-date -u
-Tstart
-[ ! -f $outputHucDataDir/nwm_catchments_proj_subset.tif ] && \
-gdal_rasterize -ot Int32 -a ID -a_nodata 0 -init 0 -co "COMPRESS=LZW" -co "BIGTIFF=YES" -co "TILED=YES" -te $xmin $ymin $xmax $ymax -ts $ncols $nrows $outputHucDataDir/nwm_catchments_proj_subset.gpkg $outputHucDataDir/nwm_catchments_proj_subset.tif
-Tcount
+# echo -e $startDiv"Raster NWM Catchments $hucNumber"$stopDiv
+# date -u
+# Tstart
+# [ ! -f $outputHucDataDir/nwm_catchments_proj_subset.tif ] && \
+# gdal_rasterize -ot Int32 -a ID -a_nodata 0 -init 0 -co "COMPRESS=LZW" -co "BIGTIFF=YES" -co "TILED=YES" -te $xmin $ymin $xmax $ymax -ts $ncols $nrows $outputHucDataDir/nwm_catchments_proj_subset.gpkg $outputHucDataDir/nwm_catchments_proj_subset.tif
+# Tcount
 
 ## BURN NEGATIVE ELEVATIONS STREAMS ##
 echo -e $startDiv"Drop thalweg elevations by "$negativeBurnValue" units $hucNumber"$stopDiv
@@ -121,9 +121,9 @@ echo -e $startDiv"Pit remove Burned DEM $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/dem_burned_filled.tif ] && \
-# rd_depression_filling $outputHucDataDir/dem_burned.tif $outputHucDataDir/dem_burned_filled.tif
+rd_depression_filling $outputHucDataDir/dem_burned.tif $outputHucDataDir/dem_burned_filled.tif
 # rd_depression_filling $outputHucDataDir/dem_burned.tif $outputHucDataDir/dem_burned_filled_richdem.tif
-mpiexec -n 4 $taudemDir/pitremove -z $outputHucDataDir/dem_burned.tif -fel $outputHucDataDir/dem_burned_filled.tif
+# mpiexec -n 4 $taudemDir/pitremove -z $outputHucDataDir/dem_burned.tif -fel $outputHucDataDir/dem_burned_filled.tif
 Tcount
 
 ## D8 FLOW DIR ##
@@ -350,5 +350,5 @@ echo -e $startDiv"Finalize catchments and model streams $hucNumber"$stopDiv
 date -u
 Tstart
 [ ! -f $outputHucDataDir/gw_catchments_reaches_clipped_addedAttributes_crosswalked.gpkg ] && \
-$libDir/add_crosswalk.py $outputHucDataDir/gw_catchments_reaches_filtered_addedAttributes.gpkg $outputHucDataDir/demDerived_reaches_split_filtered.gpkg $outputHucDataDir/src_base.csv $outputHucDataDir/gw_catchments_reaches_clipped_addedAttributes_crosswalked.gpkg $outputHucDataDir/demDerived_reaches_split_clipped_addedAttributes_crosswalked.gpkg $outputHucDataDir/src_full_crosswalked.csv $outputHucDataDir/src.json $outputHucDataDir/crosswalk_table.csv $outputHucDataDir/hydroTable.csv $outputHucDataDir/wbd8_clp.gpkg $outputHucDataDir/nwm_subset_streams.gpkg $manning_n
+$libDir/add_crosswalk.py $outputHucDataDir/gw_catchments_reaches_filtered_addedAttributes.gpkg $outputHucDataDir/demDerived_reaches_split_filtered.gpkg $outputHucDataDir/src_base.csv $outputHucDataDir/gw_catchments_reaches_clipped_addedAttributes_crosswalked.gpkg $outputHucDataDir/demDerived_reaches_split_clipped_addedAttributes_crosswalked.gpkg $outputHucDataDir/src_full_crosswalked.csv $outputHucDataDir/src.json $outputHucDataDir/crosswalk_table.csv $outputHucDataDir/hydroTable.csv $outputHucDataDir/wbd8_clp.gpkg $outputHucDataDir/nwm_subset_streams.gpkg $manning_n $input_NWM_Catchments
 Tcount
