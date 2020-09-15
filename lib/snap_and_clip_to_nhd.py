@@ -8,7 +8,7 @@ import argparse
 from os.path import splitext
 from shapely.strtree import STRtree
 from shapely.geometry import Point,MultiLineString,LineString,mapping
-from derive_headwaters import findHeadWaterPoints
+# from derive_headwaters import findHeadWaterPoints
 
 def subset_vector_layers(hucCode,nwm_streams_fileName,nhd_streams_fileName,nhd_streams_vaa_fileName,nwm_lakes_fileName,nwm_catchments_fileName,wbd_fileName,wbd_buffered_fileName,subset_nhd_streams_fileName,subset_nwm_lakes_fileName,subset_nwm_headwaters_fileName,subset_nwm_catchments_fileName,subset_nwm_streams_fileName,subset_nhd_headwaters_fileName=None,dissolveLinks=False):
 

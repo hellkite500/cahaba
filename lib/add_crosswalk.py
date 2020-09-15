@@ -27,11 +27,11 @@ input_huc = gpd.read_file(input_huc_fileName)
 # input_majorities = gpd.read_file(input_majorities_fileName)
 input_nwmflows = gpd.read_file(input_nwmflows_fileName)
 input_nwmcat = gpd.read_file(input_nwmcat_fileName, mask=input_huc)
-input_nwmflows = input_nwmflows.rename(columns={'ID':'feature_id'})
+input_nwmflows = input_nwmflows.rename(columns={'ID':'feature_id'}).astype(int)
 
 # build crosswalk from stream centroids
 input_flows_centroid = gpd.GeoDataFrame({'geometry':input_flows.set_index('HydroID').geometry.centroid}, crs=input_flows.crs, geometry='geometry')
-input_nwmcat = input_nwmcat.rename(columns={'ID':'feature_id'})
+input_nwmcat = input_nwmcat.rename(columns={'ID':'feature_id'}).astype(int)
 crosswalk = gpd.sjoin(input_flows_centroid, input_nwmcat, how='left', op='within').reset_index()
 crosswalk = crosswalk.filter(items=['HydroID', 'feature_id'])
 crosswalk = crosswalk.merge(input_nwmflows[['feature_id','order_']],on='feature_id')

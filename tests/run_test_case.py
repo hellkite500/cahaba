@@ -181,6 +181,7 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
     rem = os.path.join(fim_run_parent, 'rem_zeroed_masked.tif')
 
     catchments = os.path.join(fim_run_parent, 'gw_catchments_reaches_filtered_addedAttributes.tif')
+    catchment_poly = os.path.join(fim_run_parent, 'gw_catchments_reaches_clipped_addedAttributes_crosswalked.gpkg')
     current_huc = test_id.split('_')[0]
     hucs, hucs_layerName = os.path.join(INPUTS_DIR, 'wbd', 'WBD_National.gpkg'), 'WBDHU8'
     hydro_table = os.path.join(fim_run_parent, 'hydroTable.csv')
@@ -255,9 +256,9 @@ def run_alpha_test(fim_run_dir, branch_name, test_id, return_interval, compare_t
         # Run inundate.
         print("-----> Running inundate() to produce modeled inundation extent for the " + return_interval + " return period...")
         inundate(
-                 rem,catchments,hydro_table,forecast,hucs=hucs,hucs_layerName=hucs_layerName,subset_hucs=current_huc,
+                 rem,catchments,catchment_poly,hydro_table,forecast,hucs=hucs,hucs_layerName=hucs_layerName,subset_hucs=current_huc,
                  num_workers=1,aggregate=False,inundation_raster=inundation_raster,inundation_polygon=None,
-                 depths=None,out_raster_profile=None,out_vector_profile=None,quiet=True
+                 depths=None,out_raster_profile=None,out_vector_profile=None,quiet=True,
                 )
 
         print("-----> Inundation mapping complete.")

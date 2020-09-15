@@ -25,7 +25,7 @@ mkdir $outputHucDataDir
 ## SET VARIABLES AND FILE INPUTS ##
 hucUnitLength=${#hucNumber}
 huc4Identifier=${hucNumber:0:4}
-input_NHD_Flowlines=$inputDataDir/CONUS_data/NHDPlusBurnLineEvent_wVAA_120401_final.gpkg
+input_NHD_Flowlines=$inputDataDir/CONUS_data/NHDPlusBurnLineEvent_wVAA_tx_final.gpkg
 input_NHD_VAA=$inputDataDir/nhdplus_vectors/"$huc4Identifier"/NHDPlusFlowLineVAA"$huc4Identifier".gpkg
 input_NHD_WBHD_layer=WBDHU$hucUnitLength
 input_DEM=$inputDataDir/nhdplus_rasters/HRNHDPlusRasters"$huc4Identifier"/elev_cm.tif
