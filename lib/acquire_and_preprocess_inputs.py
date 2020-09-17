@@ -22,7 +22,11 @@ from utils.shared_variables import (NHD_URL_PARENT,
                                     OVERWRITE_NHD,
                                     OVERWRITE_ALL)
 
-from utils.shared_functions import pull_file, run_system_command, subset_wbd_gpkg, delete_file
+from utils.shared_functions import (pull_file,
+                                    pull_7z_file,
+                                    run_system_command,
+                                    subset_wbd_gpkg,
+                                    delete_file)
     
 NHDPLUS_VECTORS_DIRNAME = 'nhdplus_vectors'
 NHDPLUS_RASTERS_DIRNAME = 'nhdplus_rasters'

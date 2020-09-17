@@ -16,6 +16,23 @@ def pull_file(url, full_pulled_filepath):
     print("Pulling " + url)
     urllib.request.urlretrieve(url, full_pulled_filepath)
 
+def pull_7z_file(archive, output_dir, filepath):
+    """
+    Function to directly extract a file from a 7zip archive on S3.
+
+    Args:
+        archive (str): The S3Uri to the 7zip object, "s3://bucket/object.7z"
+        output_dir (str): Directory to extract to the file to.
+        filepath (str): Filepath within the archive for the file to extract.
+    """
+
+    import s3fs
+    import py7zr
+
+    fs = s3fs.S3FileSystem(anon=True)
+
+    with py7zr.SevenZipFile(fs.open(archive), 'r') as zip:
+        zip.extract(path=output, targets=[filepath])
         
 def delete_file(file_path):
     """
