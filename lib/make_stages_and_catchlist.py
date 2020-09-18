@@ -19,22 +19,22 @@ flows = gpd.read_file(flows_fileName)
 catchments = gpd.read_file(catchments_fileName)
 
 
-hydroIDs = flows['HydroID'].tolist()
+hydroIDs = flows["HydroID"].tolist()
 len_of_hydroIDs = len(hydroIDs)
-slopes = flows['S0'].tolist()
-lengthkm = flows['LengthKm'].tolist()
-areasqkm = catchments['areasqkm'].tolist()
+slopes = flows["S0"].tolist()
+lengthkm = flows["LengthKm"].tolist()
+areasqkm = catchments["areasqkm"].tolist()
 
 
 stages_max = stages_max + stages_interval
-stages = np.round(np.arange(stages_min,stages_max,stages_interval),4)
+stages = np.round(np.arange(stages_min, stages_max, stages_interval), 4)
 
-with open(stages_fileName,'w') as f:
+with open(stages_fileName, "w") as f:
     f.write("Stage\n")
     for stage in stages:
         f.write("{}\n".format(stage))
 
-with open(catchlist_fileName,'w') as f:
+with open(catchlist_fileName, "w") as f:
     f.write("{}\n".format(len_of_hydroIDs))
-    for h,s,l,a in zip(hydroIDs,slopes,lengthkm,areasqkm):
-        f.write("{} {} {} {}\n".format(h,s,l,a))
+    for h, s, l, a in zip(hydroIDs, slopes, lengthkm, areasqkm):
+        f.write("{} {} {} {}\n".format(h, s, l, a))
