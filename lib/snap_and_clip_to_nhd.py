@@ -96,30 +96,28 @@ def subset_vector_layers(hucCode,nwm_streams_fileName,nhd_streams_fileName,nhd_s
     Q = deque(nhd_streams.loc[nhd_streams['incoming_streams'],'NHDPlusID'].tolist())
     visited = set()
 
-
-
     while Q:
         q = Q.popleft()
         if q in visited:
             continue
         visited.add(q)
         # new suggested code
-        FromNode, DnLevelPat = nhd_streams.loc[q,['FromNode','DnLevelPat']]
-        upstream_ids = nhd_streams.loc[nhd_streams['ToNode'] == FromNode,:].index.tolist()
-        if len(upstream_ids) > 1:
-            relevant_ids = [segment for segment in upstream_ids if DnLevelPat == nhd_streams.loc[segment,'LevelPathI']]
-        else:
-            relevant_ids = upstream_ids
-        nhd_streams.loc[relevant_ids,'is_nwm_stream']=True
-        for i in relevant_ids:
-            if i not in visited:
-                Q.append(i)
-        # FromNode = nhd_streams.loc[q,'FromNode']
+        # FromNode, DnLevelPat = nhd_streams.loc[q,['FromNode','DnLevelPat']]
         # upstream_ids = nhd_streams.loc[nhd_streams['ToNode'] == FromNode,:].index.tolist()
-        # nhd_streams.loc[upstream_ids,'relevant_stream'] = True
-        # for i in upstream_ids:
+        # if len(upstream_ids) > 1:
+        #     relevant_ids = [segment for segment in upstream_ids if DnLevelPat == nhd_streams.loc[segment,'LevelPathI']]
+        # else:
+        #     relevant_ids = upstream_ids
+        # nhd_streams.loc[relevant_ids,'is_nwm_stream']=True
+        # for i in relevant_ids:
         #     if i not in visited:
         #         Q.append(i)
+        FromNode = nhd_streams.loc[q,'FromNode']
+        upstream_ids = nhd_streams.loc[nhd_streams['ToNode'] == FromNode,:].index.tolist()
+        nhd_streams.loc[upstream_ids,'relevant_stream'] = True
+        for i in upstream_ids:
+            if i not in visited:
+                Q.append(i)
 
     nhd_streams = nhd_streams.loc[nhd_streams['relevant_stream'],:]
 

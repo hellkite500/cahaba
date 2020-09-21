@@ -109,7 +109,7 @@ output_hydro_table['LakeID'] = output_hydro_table['LakeID'].astype(int)
 output_hydro_table = output_hydro_table.rename(columns={'HUC8':'HUC'})
 output_hydro_table.drop(columns='fossid',inplace=True)
 #output_hydro_table['discharge_cms'] = output_hydro_table['discharge_cms'].round(4)
-
+if output_hydro_table.feature_id.dtype != 'int': output_hydro_table.feature_id = output_hydro_table.feature_id.astype(int)
 # make src json
 output_src_json = dict()
 hydroID_list = unique(output_src['HydroID'])
