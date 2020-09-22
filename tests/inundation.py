@@ -402,6 +402,7 @@ def __make_windows_generator(rem,catchments,catchment_poly,catchmentStagesDict,i
 
             try:
                 fossid = huc['properties']['fossid']
+                if catchment_poly.HydroID.dtype != 'str': catchment_poly.HydroID = catchment_poly.HydroID.astype(str)
                 catchment_poly=catchment_poly[catchment_poly.HydroID.str.startswith(fossid)]
 
                 rem_array,window_transform = mask(rem,catchment_poly['geometry'],crop=True,indexes=1)
