@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
+import pygeos
 import geopandas as gpd
+import pandas as pd
 from collections import deque,Counter
 import numpy as np
 from tqdm import tqdm
@@ -8,6 +10,9 @@ import argparse
 from os.path import splitext
 from shapely.strtree import STRtree
 from shapely.geometry import Point,MultiLineString,LineString,mapping
+from shapely.ops import split
+from shapely.wkb import dumps, loads
+# gpd.options.use_pygeos = True
 
 def subset_vector_layers(hucCode,nwm_streams_fileName,nwm_headwaters_fileName,nhd_streams_fileName,nwm_lakes_fileName,nwm_catchments_fileName,wbd_fileName,wbd_buffer_fileName,subset_nhd_streams_fileName,subset_nwm_lakes_fileName,subset_nwm_headwaters_fileName,subset_nwm_catchments_fileName,subset_nwm_streams_fileName,subset_nhd_headwaters_fileName=None,dissolveLinks=False):
 
@@ -46,11 +51,80 @@ def subset_vector_layers(hucCode,nwm_streams_fileName,nwm_headwaters_fileName,nh
     print('Identify NHD Headwater streams nearest to NWM Headwater points',flush=True)
     nhd_streams.loc[:,'is_nwm_headwater'] = False
     # nhd_streams_tree = STRtree(nhd_streams.geometry)
-    for index, row in tqdm(nwm_headwaters.iterrows(),total=len(nwm_headwaters)):
-        distances = nhd_streams.distance(row['geometry'])
-        # nearestGeom = nhd_streams_tree.nearest(row['geometry'])
+
+#################################################################################################################
+    # convert geometries to WKB representation
+    nhd_streams['b_geom'] = None
+    for index, linestring in enumerate(nhd_streams.geometry):
+        nhd_streams.at[index, 'b_geom'] = dumps(linestring)
+    # create pygeos nhd stream geometries from WKB representation
+    streambin_geom = pygeos.io.from_wkb(nhd_streams['b_geom'])
+
+    headwaterstreams = []
+    referencedpoints = []
+    nwm_headwater_snapped = nwm_headwaters.copy()
+    for index, point in tqdm(enumerate(nwm_headwaters.geometry),total=len(nwm_headwaters.geometry)):
+        # convert headwaterpoint geometries to WKB representation
+        wkb_points = dumps(point)
+        # create pygeos headwaterpoint geometries from WKB representation
+        pointbin_geom = pygeos.io.from_wkb(wkb_points)
+
+        # distance to each stream segment
+        distances = pygeos.measurement.distance(streambin_geom, pointbin_geom)
+        # find minimum distance
         min_index = np.argmin(distances)
-        nhd_streams.loc[min_index,'is_nwm_headwater'] = True
+        # Closest segment to headwater
+        closest_stream = streambin_geom[min_index]
+
+        # Linear reference headwater to closest stream segment
+        pointdistancetoline = pygeos.linear.line_locate_point(closest_stream, pointbin_geom)
+        referencedpoint = pygeos.linear.line_interpolate_point(closest_stream, pointdistancetoline)
+
+        # convert geometries to wkb representation
+        bin_referencedpoint = pygeos.io.to_wkb(referencedpoint)
+        bin_linestring = pygeos.io.to_wkb(closest_stream)
+        # convert to shapely geometries
+        shply_referencedpoint = loads(bin_referencedpoint)
+        shply_linestring = loads(bin_linestring)
+
+        headpoint = Point(shply_referencedpoint.coords)
+
+        cumulative_line = []
+        relativedistlst = []
+        # collect all nhd stream segment linestring verticies
+        for point in zip(*shply_linestring.coords.xy):
+            cumulative_line = cumulative_line + [point]
+            relativedist = shply_linestring.project(Point(point))
+            relativedistlst = relativedistlst + [relativedist]
+        # add linear referenced headwater point to closest nhd stream segment
+        if not headpoint in cumulative_line:
+            cumulative_line = cumulative_line + [headpoint]
+            relativedist = shply_linestring.project(headpoint)
+            relativedistlst = relativedistlst + [relativedist]
+        # sort by relative line distance to place headwater point in linestring
+        sortline = pd.DataFrame({'geom' : cumulative_line, 'dist' : relativedistlst}).sort_values('dist')
+        shply_linestring = LineString(sortline.geom.tolist())
+        referencedpoints = referencedpoints + [headpoint]
+        # split the new linestring at the new headwater point
+        try:
+            line1,line2 = split(shply_linestring, headpoint)
+            headwaterstreams = headwaterstreams + [LineString(line1)]
+            nhd_streams.loc[min_index,'geometry'] = LineString(line1)
+            nhd_streams.loc[min_index,'is_nwm_headwater'] = True
+        except:
+            line1 = split(shply_linestring, headpoint)
+            headwaterstreams = headwaterstreams + [LineString(line1[0])]
+            nhd_streams.loc[min_index,'geometry'] = LineString(line1[0])
+            nhd_streams.loc[min_index,'is_nwm_headwater'] = True
+
+    # drop binary geometry
+    nhd_streams = nhd_streams.drop(columns=['b_geom'])
+#################################################################################################################
+    # for index, row in tqdm(nwm_headwaters.iterrows(),total=len(nwm_headwaters)):
+    #     distances = nhd_streams.distance(row['geometry'])
+    #     # nearestGeom = nhd_streams_tree.nearest(row['geometry'])
+    #     min_index = np.argmin(distances)
+    #     nhd_streams.loc[min_index,'is_nwm_headwater'] = True
 
     # writeout nwm headwaters
     if not nwm_headwaters.empty:
